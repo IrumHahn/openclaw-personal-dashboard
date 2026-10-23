@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { readConfig } from '../../../lib/config'
+import { readConfig } from '../../../lib/config-store'
 import { readStore } from '../../../lib/store'
 
 export const runtime = 'nodejs'

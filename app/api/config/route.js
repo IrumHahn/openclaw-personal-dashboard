@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { normalizeConfig, readConfig, writeConfig } from '../../../lib/config'
+import { normalizeConfig } from '../../../lib/config'
+import { readConfig, writeConfig } from '../../../lib/config-store'
 import { assertSameOrigin } from '../../../lib/security'
 
 export const runtime = 'nodejs'

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { readConfig, writeConfig } from '../../../lib/config'
+import { readConfig, writeConfig } from '../../../lib/config-store'
 import { mutateStore } from '../../../lib/store'
 import { applyBundle, fetchBundle } from '../../../lib/sync'
 import { assertSameOrigin } from '../../../lib/security'

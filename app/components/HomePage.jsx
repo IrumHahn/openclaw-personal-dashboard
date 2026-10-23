@@ -1,0 +1,33 @@
+'use client'
+
+import { ArrowRight, RefreshCw } from 'lucide-react'
+import { MENU_BY_KEY } from '../../lib/menu-tree'
+import { Empty, MenuIcon, countOpen, formatDate, formatDateTime } from './shared'
+
+export default function HomePage({ config, records, system, loading, navigate, onSync, syncing, syncConfigured }) {
+  const favorites = config.favorites.map(key => MENU_BY_KEY[key]).filter(Boolean)
+  const recent = Object.values(records).flat().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 6)
+  const openTasks = countOpen(records.tasks)
+  return <>
+    <header className="page-header home-header"><div><p className="eyebrow">{config.week}주차 · PERSONAL WORKSPACE</p><h1>{config.name}</h1><p className="subtitle">오늘의 업무와 팀의 움직임을 한눈에 확인하세요.</p></div>
+      <div className="home-actions">
+        <div className="connection"><span className={system?.gatewayReachable || config.sync.lastSuccessAt ? 'dot ok' : 'dot'} />{config.sync.lastSuccessAt ? `동기화 ${formatDateTime(config.sync.lastSuccessAt)}` : system?.gatewayReachable ? 'OpenClaw 연결됨' : '동기화 전'}</div>
+        <button className="secondary-button" onClick={onSync} disabled={syncing} title={syncConfigured ? 'VPS 에서 최신 대시보드 데이터를 가져옵니다' : '.env.local 에 동기화 주소와 토큰을 넣으면 활성화됩니다'}><RefreshCw size={14} className={syncing ? 'spin' : ''} />{syncing ? '가져오는 중…' : '동기화'}</button>
+      </div>
+    </header>
+    <section className="favorites" aria-label="즐겨찾기">
+      {favorites.map(menu => <button className="favorite" key={menu.key} onClick={() => navigate(menu.key)}><MenuIcon name={menu.icon} size={18} /><strong>{menu.label}</strong><small>{menu.key === 'tasks' ? `${loading ? '—' : openTasks}건 진행 전` : menu.kind === 'record' ? `${(records[menu.key] || []).length}건` : menu.purpose}</small></button>)}
+    </section>
+    <div className="home-grid">
+      <section className="surface"><div className="section-heading"><h2>최근 움직임</h2><span>내 기록</span></div>{recent.length ? recent.map(item => <div className="activity-row" key={item.id}><span className="activity-mark" /><div><strong>{item.title}</strong><small>{item.summary || item.body || '기록됨'}</small></div><time>{formatDate(item.updatedAt)}</time></div>) : <Empty>아직 기록이 없습니다. 동기화하거나 메뉴에서 첫 항목을 추가해 보세요.</Empty>}</section>
+      <section className="surface"><div className="section-heading"><h2>팀과 시스템</h2><button onClick={() => navigate('agents')}>팀 보기 <ArrowRight size={14} /></button></div>
+        <div className="system-line"><span>직원</span><strong>{config.agents.length}명</strong></div>
+        <div className="system-line"><span>VPS 등록 에이전트</span><strong>{system?.registeredAgents?.length ?? '—'}개</strong></div>
+        <div className="system-line"><span>이 PC 의 OpenClaw</span><strong>{system?.connected ? '연결됨' : '없음/확인 불가'}</strong></div>
+        <div className="system-line"><span>동기화 버전</span><strong>{config.sync.lastVersion || '—'}</strong></div>
+        {config.sync.lastError && <p className="fine-print error-text">마지막 동기화 오류: {config.sync.lastError}</p>}
+        <p className="fine-print">마지막 확인 {formatDateTime(system?.checkedAt)}</p>
+      </section>
+    </div>
+  </>
+}
