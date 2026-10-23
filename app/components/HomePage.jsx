@@ -4,7 +4,7 @@ import { ArrowRight, RefreshCw } from 'lucide-react'
 import { MENU_BY_KEY } from '../../lib/menu-tree'
 import { Empty, MenuIcon, countOpen, formatDate, formatDateTime } from './shared'
 
-export default function HomePage({ config, records, system, loading, navigate, onSync, syncing, syncConfigured }) {
+export default function HomePage({ config, records, system, loading, navigate, onSync, syncing, syncConfigured, inbox }) {
   const favorites = config.favorites.map(key => MENU_BY_KEY[key]).filter(Boolean)
   const recent = Object.values(records).flat().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 6)
   const openTasks = countOpen(records.tasks)
@@ -12,7 +12,7 @@ export default function HomePage({ config, records, system, loading, navigate, o
     <header className="page-header home-header"><div><p className="eyebrow">{config.week}주차 · PERSONAL WORKSPACE</p><h1>{config.name}</h1><p className="subtitle">오늘의 업무와 팀의 움직임을 한눈에 확인하세요.</p></div>
       <div className="home-actions">
         <div className="connection"><span className={system?.gatewayReachable || config.sync.lastSuccessAt ? 'dot ok' : 'dot'} />{config.sync.lastSuccessAt ? `동기화 ${formatDateTime(config.sync.lastSuccessAt)}` : system?.gatewayReachable ? 'OpenClaw 연결됨' : '동기화 전'}</div>
-        <button className="secondary-button" onClick={onSync} disabled={syncing} title={syncConfigured ? 'VPS 에서 최신 대시보드 데이터를 가져옵니다' : '.env.local 에 동기화 주소와 토큰을 넣으면 활성화됩니다'}><RefreshCw size={14} className={syncing ? 'spin' : ''} />{syncing ? '가져오는 중…' : '동기화'}</button>
+        <button className="secondary-button" onClick={onSync} disabled={syncing} title={inbox?.present ? `받은 데이터 버전 ${inbox.version}${inbox.isNew ? ' (새 데이터)' : ''}` : 'VPS 비서가 보낸 데이터를 반영합니다'}><RefreshCw size={14} className={syncing ? 'spin' : ''} />{syncing ? '반영 중…' : inbox?.isNew ? '새 데이터 반영' : '동기화'}</button>
       </div>
     </header>
     <section className="favorites" aria-label="즐겨찾기">

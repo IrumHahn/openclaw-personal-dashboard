@@ -40,3 +40,22 @@ test('fetchBundle sends the bearer token and explains 401/404', async () => {
   await assert.rejects(fetchBundle('http://x/', 't', async () => ({ ok: false, status: 401 })), /토큰을 거부/)
   await assert.rejects(fetchBundle('http://x/', 't', async () => ({ ok: false, status: 404 })), /404/)
 })
+
+test('inbox: new version is detected, same version is not', async () => {
+  const { inboxIsNew, readInbox } = await import('../lib/inbox.js')
+  const fs = await import('node:fs')
+  const os = await import('node:os')
+  const path = await import('node:path')
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dash-inbox-'))
+  try {
+    assert.equal((await readInbox(dir)).present, false)
+    fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify({ version: 'v1', generatedAt: '2026-10-24T00:00:00Z' }))
+    fs.writeFileSync(path.join(dir, 'seed.json'), JSON.stringify({ records: { tasks: [] }, agents: [] }))
+    const inbox = await readInbox(dir)
+    assert.equal(inbox.present, true)
+    assert.equal(inbox.version, 'v1')
+    assert.equal(inbox.bundle.config, null)
+    assert.equal(inboxIsNew(inbox, null), true)
+    assert.equal(inboxIsNew(inbox, 'v1'), false)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+})

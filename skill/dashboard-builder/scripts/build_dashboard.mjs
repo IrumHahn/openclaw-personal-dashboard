@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 재료(team.json · HIA STATE.md · openclaw agents list)로 대시보드 동기화 파일 3개를 만든다.
-//   <out>/manifest.json  버전(내용 해시)·생성 시각·개수·파싱 사유
+//   <out>/manifest.json  버전(내용 해시)·생성 시각·개수·파싱 사유   (기본 <out> = ~/.openclaw/workspace/dashboard, 이후 send_to_pc.mjs 로 PC 에 전송)
 //   <out>/config.json    메뉴·담당·즐겨찾기·주차·직원
 //   <out>/seed.json      칸반 기록 + VPS 에이전트 목록
 // 같은 입력이면 같은 version 이 나온다(generatedAt 제외). 기존 파일은 .bak-<시각> 으로 보관한다.
@@ -38,7 +38,7 @@ function parseArgs(argv) {
       default: fail(`unknown option: ${flag}`)
     }
   }
-  if (!options.out) options.out = path.join(os.homedir(), '.openclaw', 'workspace', 'canvas', 'dashboard')
+  if (!options.out) options.out = path.join(os.homedir(), '.openclaw', 'workspace', 'dashboard')
   if (options.week !== null && !(Number.isInteger(options.week) && options.week >= 1 && options.week <= 4)) fail('--week must be 1-4')
   for (const key of [...options.menus, ...Object.keys(options.owners), ...(options.favorites || [])]) if (!MENU_KEYS.includes(key)) fail(`unknown menu key: ${key}`)
   for (const agent of Object.values(options.owners)) if (!AGENT_ID.test(agent)) fail(`invalid agent id: ${agent}`)

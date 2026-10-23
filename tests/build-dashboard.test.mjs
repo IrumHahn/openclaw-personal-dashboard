@@ -87,10 +87,19 @@ test('missing team/state degrade gracefully with reasons; check_sync validates o
     const manifest = t.read('manifest.json')
     assert.ok(manifest.reasons.some(r => /single-agent/.test(r)))
     assert.equal(manifest.counts.tasks, 0)
-    const checked = spawnSync(process.execPath, [check, '--out', t.out], { encoding: 'utf8', env: { ...process.env, OPENCLAW_BIN: '/nonexistent' } })
+    const fakeBin = path.join(dir, 'fake-openclaw', 'openclaw')
+    const env = { ...process.env, OPENCLAW_BIN: fakeBin, FAKE_STATE: path.join(t.temp, 'fake') }
+    // pc.json 없음 + 플러그인 미설정 → 문제 보고(exit 1)
+    const first = spawnSync(process.execPath, [check, '--out', t.out], { encoding: 'utf8', env })
+    assert.equal(first.status, 1)
+    assert.ok(JSON.parse(first.stdout).problems.some(p => /pc\.json missing/.test(p)))
+    // setup_transfer 후에는 통과
+    const setup = path.join(dir, '..', 'skill', 'dashboard-builder', 'scripts', 'setup_transfer.mjs')
+    assert.equal(spawnSync(process.execPath, [setup, '--node', 'node-pc-1', '--inbox', '/home/me/inbox', '--save', path.join(t.out, 'pc.json')], { encoding: 'utf8', env }).status, 0)
+    const checked = spawnSync(process.execPath, [check, '--out', t.out], { encoding: 'utf8', env })
     assert.equal(checked.status, 0, checked.stdout)
-    assert.ok(JSON.parse(checked.stdout).hints.some(h => /__openclaw__\/canvas\/dashboard/.test(h)))
+    assert.ok(JSON.parse(checked.stdout).hints.some(h => /send_to_pc/.test(h)))
     fs.rmSync(path.join(t.out, 'seed.json'))
-    assert.equal(spawnSync(process.execPath, [check, '--out', t.out], { encoding: 'utf8', env: { ...process.env, OPENCLAW_BIN: '/nonexistent' } }).status, 1)
+    assert.equal(spawnSync(process.execPath, [check, '--out', t.out], { encoding: 'utf8', env }).status, 1)
   } finally { t.cleanup() }
 })

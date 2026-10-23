@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+// 테스트용 가짜 OpenClaw CLI (dashboard-builder 전송 스크립트 검증용).
+// 상태: $FAKE_STATE/state.json. file.write 는 $FAKE_STATE/pc/<path> 에 실제로 쓴다(Windows 드라이브 문자는 폴더로 치환).
+import { createHash } from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
+
+const stateDir = process.env.FAKE_STATE || path.join(process.cwd(), '.fake-openclaw')
+const stateFile = path.join(stateDir, 'state.json')
+function load() { try { return JSON.parse(fs.readFileSync(stateFile, 'utf8')) } catch { return { config: { plugins: { allow: ['codex'] } }, patches: [], invokes: [] } } }
+function save(s) { fs.mkdirSync(stateDir, { recursive: true }); fs.writeFileSync(stateFile, JSON.stringify(s, null, 2)) }
+function out(v) { process.stdout.write((typeof v === 'string' ? v : JSON.stringify(v)) + '\n') }
+function die(m, code = 1) { process.stderr.write(m + '\n'); process.exit(code) }
+function flag(args, n) { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined }
+function getPath(o, p) { return p.split('.').reduce((a, k) => (a == null ? undefined : a[k]), o) }
+function merge(t, p) { for (const [k, v] of Object.entries(p)) { if (v && typeof v === 'object' && !Array.isArray(v)) t[k] = merge(t[k] && typeof t[k] === 'object' ? t[k] : {}, v); else t[k] = v } return t }
+
+const s = load(); const args = process.argv.slice(2); const [g, sub] = args
+if (process.env.FAKE_PLUGIN_NOISE) process.stdout.write('[plugins] noisy-plugin: registered tools\n')
+if (g === 'nodes' && sub === 'list') {
+  save(s); out({ nodes: [{ nodeId: 'node-pc-1', displayName: 'My PC', connected: process.env.FAKE_NODE_OFFLINE ? false : true, platform: 'windows' }], pending: process.env.FAKE_PENDING ? [{ requestId: 'req-1', displayName: 'My PC' }] : [] }); process.exit(0)
+}
+if (g === 'nodes' && sub === 'invoke') {
+  const node = flag(args, '--node'); const cmd = flag(args, '--command'); const params = JSON.parse(flag(args, '--params') || '{}')
+  s.invokes.push({ node, cmd, path: params.path }); save(s)
+  if (node !== 'node-pc-1') die(JSON.stringify({ ok: false, error: { message: 'node not found' } }))
+  if (cmd !== 'file.write') die(JSON.stringify({ ok: false, error: { message: `node command not allowed: ${cmd}` } }))
+  const allow = getPath(s.config, 'plugins.entries.file-transfer.config.nodes.node-pc-1.allowWritePaths') || []
+  const ok = allow.some(p => params.path.startsWith(p.replace(/\/\*\*$/, '')))
+  if (!ok) { out({ ok: false, error: { type: 'cli_error', message: 'file.write POLICY_DENIED: path does not match any allowWritePaths pattern' } }); process.exit(1) }
+  if (!path.isAbsolute(params.path) && !/^[A-Za-z]:\//.test(params.path)) { out({ ok: false, error: { message: 'path must be absolute' } }); process.exit(1) }
+  const buf = Buffer.from(params.contentBase64, 'base64')
+  const local = path.join(stateDir, 'pc', params.path.replace(/^([A-Za-z]):/, '$1'))
+  fs.mkdirSync(path.dirname(local), { recursive: true })
+  const existed = fs.existsSync(local)
+  fs.writeFileSync(local, buf)
+  out({ ok: true, nodeId: node, command: cmd, payload: { ok: true, path: params.path, size: buf.length, sha256: createHash('sha256').update(buf).digest('hex'), overwritten: existed } }); process.exit(0)
+}
+if (g === 'config' && sub === 'patch') {
+  const file = flag(args, '--file'); const patch = JSON.parse(fs.readFileSync(file, 'utf8'))
+  if (!args.includes('--dry-run')) { merge(s.config, patch); s.patches.push(patch) }
+  save(s); out(args.includes('--dry-run') ? 'Dry run successful' : 'Applied config update(s)'); process.exit(0)
+}
+if (g === 'config' && sub === 'get') { const v = getPath(s.config, args[2]); save(s); if (v === undefined) die('Config path is valid but unset'); out(v); process.exit(0) }
+if (g === 'plugins' && sub === 'list') { save(s); out('│ File Transfer │ file-transfer │ openclaw │ ' + (getPath(s.config, 'plugins.entries.file-transfer.enabled') ? 'enabled' : 'disabled') + ' │'); process.exit(0) }
+if (g === 'agents' && sub === 'list') { save(s); out([{ id: 'main', identityName: '드림' }]); process.exit(0) }
+save(s); die(`error: unknown command '${g} ${sub}'`)

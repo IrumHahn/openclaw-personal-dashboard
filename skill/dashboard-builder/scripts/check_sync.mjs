@@ -1,37 +1,41 @@
 #!/usr/bin/env node
-// 동기화 준비 점검: 캔버스 폴더의 3개 파일이 있고 JSON 이 유효하며 비밀값이 없는지,
-// 그리고 PC 대시보드에 넣을 동기화 주소를 안내한다. 네트워크 호출은 하지 않는다.
+// 전송 준비 점검: 빌드 파일 3개 존재·JSON 유효·비밀값 없음, pc.json 존재, 노드 연결·기능 승인 대기, file-transfer 플러그인 상태.
+// 네트워크 호출 없음(openclaw CLI 조회만). 사용: node check_sync.mjs [--out <dir>] [--pc <pc.json>]
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { execFileSync } from 'node:child_process'
+import { cli, configGet, listNodes } from './lib/openclaw.mjs'
 
 const SECRET = /(sk-[a-z0-9]{8,}|ghp_[a-z0-9]{10,}|(?:password|passwd|secret|api[_ -]?key|token)\s*[:=]\s*\S{6,})/i
-const dir = process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : path.join(os.homedir(), '.openclaw', 'workspace', 'canvas', 'dashboard')
+const argv = process.argv.slice(2)
+const flag = n => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : undefined }
+const dir = flag('--out') || path.join(os.homedir(), '.openclaw', 'workspace', 'dashboard')
+const pcPath = flag('--pc') || path.join(dir, 'pc.json')
 const problems = []
 const files = {}
 for (const name of ['manifest.json', 'config.json', 'seed.json']) {
   const file = path.join(dir, name)
-  if (!fs.existsSync(file)) { problems.push(`${name} missing in ${dir}`); continue }
+  if (!fs.existsSync(file)) { problems.push(`${name} missing in ${dir} — run build_dashboard.mjs`); continue }
   const text = fs.readFileSync(file, 'utf8')
   try { files[name] = JSON.parse(text) } catch { problems.push(`${name} is not valid JSON`); continue }
   if (SECRET.test(text)) problems.push(`${name} contains a secret-looking value — rebuild without it`)
 }
-let port = 18789
-let bind = null
+let pc = null
+if (fs.existsSync(pcPath)) { try { pc = JSON.parse(fs.readFileSync(pcPath, 'utf8')) } catch { problems.push('pc.json is not valid JSON') } }
+else problems.push(`pc.json missing (${pcPath}) — run setup_transfer.mjs --node <PC> --inbox <path> --save ${pcPath}`)
+let node = null; let pending = []
 try {
-  const bin = process.env.OPENCLAW_BIN || 'openclaw'
-  const value = execFileSync(bin, ['config', 'get', 'gateway.port'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 8000 }).trim()
-  if (/^\d+$/.test(value)) port = Number(value)
-  bind = execFileSync(bin, ['config', 'get', 'gateway.bind'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 8000 }).trim() || null
-} catch {}
-const hints = [
-  `PC 대시보드 .env.local 에 넣을 값 (토큰은 hPanel/설정에서 복사, 여기엔 출력하지 않음):`,
-  `  OPENCLAW_SYNC_URL=http://<이 VPS 의 Tailscale IP>:${port}/__openclaw__/canvas/dashboard/`,
-  `  OPENCLAW_GATEWAY_TOKEN=<게이트웨이 토큰>`,
-  bind && bind !== 'loopback' ? `게이트웨이 bind=${bind} (PC 에서 접근 가능)` : `게이트웨이 bind 가 loopback 이면 PC 에서 접근할 수 없습니다. Tailscale 바인드(openclaw gateway --bind tailnet)인지 확인하세요.`,
-  `canvasHost 가 꺼져 있으면(OPENCLAW_SKIP_CANVAS_HOST) 동기화가 404 입니다 — 그 경우 대시보드 설정의 "JSON 가져오기"로 seed.json 을 직접 넣습니다.`,
-]
-const result = { ok: problems.length === 0, dir, version: files['manifest.json']?.version || null, counts: files['manifest.json']?.counts || null, problems, hints }
+  const list = listNodes(); pending = list.pending
+  node = pc ? list.nodes.find(n => n.id === pc.nodeId) || null : null
+  if (pc && !node) problems.push(`node ${pc.nodeId.slice(0, 8)}… from pc.json is not paired any more`)
+  if (node && !node.connected) problems.push('PC node is not connected right now — start the OpenClaw node on the PC')
+  if (pending.length) problems.push(`node capability approval pending: ${pending.map(p => `openclaw nodes approve ${p.requestId}`).join(' ; ')}`)
+} catch (error) { problems.push(`openclaw nodes list failed: ${error.message.split('\n')[0]}`) }
+let plugin = null
+try { plugin = cli(['plugins', 'list']).split('\n').find(l => /file-transfer/.test(l)) || null; if (plugin && !/enabled/.test(plugin)) problems.push('file-transfer plugin is disabled — run setup_transfer.mjs') } catch {}
+const allow = configGet('gateway.nodes.commands.allow')
+if (!(Array.isArray(allow) && allow.includes('file.write'))) problems.push('gateway.nodes.commands.allow lacks file.write — run setup_transfer.mjs')
+const result = { ok: problems.length === 0, dir, version: files['manifest.json']?.version || null, counts: files['manifest.json']?.counts || null, pc: pc ? { nodeId: pc.nodeId, inbox: pc.inbox, connected: node?.connected ?? null } : null, problems,
+  hints: ['전송: node send_to_pc.mjs --pc ' + pcPath, 'PC 대시보드 홈에서 30초 안에 자동 반영. 안 되면 [동기화] 또는 설정 > JSON 가져오기(seed.json 붙여넣기).'] }
 process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
 if (problems.length) process.exitCode = 1

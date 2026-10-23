@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [openGroup, setOpenGroup] = useState('팀 운영')
   const [config, setConfig] = useState(() => defaultConfig())
   const [syncConfigured, setSyncConfigured] = useState(false)
+  const [inbox, setInbox] = useState(null)
   const [records, setRecords] = useState({})
   const [system, setSystem] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -45,6 +46,26 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => { refresh() }, [refresh])
+  // inbox 감시: VPS 에이전트가 새 데이터를 넣으면(버전 변경) 자동 반영한다. 30초마다 확인.
+  useEffect(() => {
+    let stopped = false
+    async function check() {
+      try {
+        const status = await api('/api/sync')
+        if (stopped) return
+        setInbox(status.inbox)
+        setSyncConfigured(Boolean(status.inbox?.present || status.remoteConfigured))
+        if (status.inbox?.isNew) {
+          const result = await api('/api/sync', { method: 'POST' })
+          if (stopped) return
+          if (result.ok && !result.unchanged) { setNotice(`새 대시보드 데이터를 반영했습니다 (버전 ${result.version || '—'}): 추가 ${result.merge.added} · 갱신 ${result.merge.updated}`); await refresh() }
+        }
+      } catch {}
+    }
+    check()
+    const timer = setInterval(check, 30000)
+    return () => { stopped = true; clearInterval(timer) }
+  }, [refresh])
   useEffect(() => {
     const applyHash = () => { const hash = window.location.hash.slice(1); if (hash === 'home' || MENU_BY_KEY[hash]) setActive(hash) }
     applyHash()
@@ -84,8 +105,8 @@ export default function Dashboard() {
   async function sync() {
     setSyncing(true); setError(''); setNotice('')
     try {
-      const result = await api('/api/sync', { method: 'POST' })
-      setNotice(`동기화 완료 (버전 ${result.version || '—'}): 추가 ${result.merge.added} · 갱신 ${result.merge.updated}${result.reasons.length ? ` · 참고: ${result.reasons.join(' / ')}` : ''}`)
+      const result = await api('/api/sync?force=1', { method: 'POST' })
+      setNotice(result.unchanged ? `이미 최신입니다 (버전 ${result.version || '—'})` : `동기화 완료 (버전 ${result.version || '—'}): 추가 ${result.merge.added} · 갱신 ${result.merge.updated}${result.reasons?.length ? ` · 참고: ${result.reasons.join(' / ')}` : ''}`)
       await refresh()
     } catch (cause) { setError(cause.message) }
     finally { setSyncing(false) }
@@ -102,10 +123,10 @@ export default function Dashboard() {
     <main className="main"><div className="content">
       {error && <div className="error-bar" role="alert">{error}<button onClick={refresh}>다시 시도</button></div>}
       {notice && <div className="notice">{notice}</div>}
-      {active === 'home' || !current ? <HomePage config={config} records={records} system={system} loading={loading} navigate={navigate} onSync={sync} syncing={syncing} syncConfigured={syncConfigured} />
+      {active === 'home' || !current ? <HomePage config={config} records={records} system={system} loading={loading} navigate={navigate} onSync={sync} syncing={syncing} syncConfigured={syncConfigured} inbox={inbox} />
         : active === 'agents' ? <AgentsPage config={config} menus={menus} system={system} loading={loading} navigate={navigate} />
         : active === 'operations' ? <OperationsPage system={system} loading={loading} />
-        : active === 'settings' ? <SettingsPage key={config.sync.lastSuccessAt || 'settings'} config={config} onSave={saveConfig} onSync={sync} syncing={syncing} syncConfigured={syncConfigured} refresh={refresh} />
+        : active === 'settings' ? <SettingsPage key={config.sync.lastSuccessAt || 'settings'} config={config} onSave={saveConfig} onSync={sync} syncing={syncing} syncConfigured={syncConfigured} inbox={inbox} refresh={refresh} />
         : current.kind === 'record' && !current.locked ? <RecordList menu={current} config={config} items={currentItems} loading={loading} search={search} setSearch={setSearch} view={view} setView={chooseView} onAdd={() => { setEditing(null); setFormOpen(true) }} onEdit={item => { setEditing(item); setFormOpen(true) }} onRemove={remove} onStatus={setStatus} />
         : <MenuCardPage menu={current} config={config} records={records} navigate={navigate} />}
     </div></main>

@@ -3,10 +3,10 @@
 내 PC 에서 돌아가는 개인 AI 오피스 화면 + VPS 의 OpenClaw 에이전트가 그 화면의 데이터를 채워 주는 **dashboard-builder 스킬**. 팀 한이룸 AI Office v2 의 메뉴 구조(5그룹 30메뉴)를 따르되, 원본의 코드·계정·업무 데이터는 포함하지 않는다.
 
 ```
-VPS (OpenClaw)                                     내 PC
-agent-team-onboarding → team.json ─┐               openclaw-personal-dashboard (이 저장소, Next.js)
-HIA STATE.md                       ├→ dashboard-builder 스킬 → canvas/dashboard/*.json ──(토큰, HTTP)──→ [동기화]
-openclaw agents list               ┘                                                      └ 막히면 설정 > JSON 가져오기
+VPS (OpenClaw)                                                      내 PC (OpenClaw 노드 + 이 앱)
+agent-team-onboarding → team.json ─┐                                openclaw-personal-dashboard (Next.js)
+HIA STATE.md                       ├→ dashboard-builder 스킬 ──file.write(OpenClaw file-transfer)──→ .data/inbox/*.json → 30초 안에 자동 반영
+openclaw agents list               ┘                                                               └ 막히면 설정 > JSON 가져오기
 ```
 
 ## 화면 (v0.2)
@@ -24,13 +24,14 @@ openclaw agents list               ┘                                          
 전제: Node.js 20.9 이상 ([nodejs.org](https://nodejs.org) LTS). OpenClaw 노드를 PC 에 설치했다면 이미 있다.
 
 ```powershell
+cd $HOME\Documents
 git clone https://github.com/IrumHahn/openclaw-personal-dashboard.git
 cd openclaw-personal-dashboard
-.\scripts\setup.ps1      # Node 확인 → 패키지 설치 → .env.local 생성(토큰은 화면에 안 보임) → 바탕화면 바로가기
+.\scripts\setup.ps1      # Node 확인 → 패키지 설치 → .env.local → inbox 폴더 → 바탕화면 바로가기
 npm run dev              # → http://127.0.0.1:3000
 ```
 
-macOS/Linux 는 `bash scripts/setup.sh`. `setup` 이 묻는 **VPS Tailscale IP** 는 `tailscale status` 의 VPS 줄, **게이트웨이 토큰**은 hPanel 또는 VPS 에서 `openclaw config get gateway.auth.token`. 모르면 Enter 로 건너뛰고 나중에 **설정 > JSON 가져오기**를 쓴다.
+macOS/Linux 는 `bash scripts/setup.sh`. **토큰·IP 입력이 없습니다.** 설치 도우미가 마지막에 보여주는 **inbox 경로**(설정 화면에도 표시)를 VPS 의 비서에게 알려주면 끝입니다. 전제: 이 PC 가 OpenClaw 노드로 VPS 에 페어링돼 있어야 합니다(1주차 수요일 과제).
 
 > `localhost` 전용이다. 휴대폰에서 보려면 Tailscale Serve 같은 인증된 HTTPS 경로를 직접 설정하고 `DASHBOARD_PASSWORD` 를 켠다. 일반 HTTP 인터넷에 노출하지 않는다.
 
@@ -39,24 +40,28 @@ macOS/Linux 는 `bash scripts/setup.sh`. `setup` 이 묻는 **VPS Tailscale IP**
 OpenClaw 가 있는 VPS 터미널에서:
 
 ```bash
-git clone https://github.com/IrumHahn/openclaw-personal-dashboard.git
-mkdir -p ~/.openclaw/skills
-cp -R openclaw-personal-dashboard/skill/dashboard-builder ~/.openclaw/skills/
-openclaw skills list     # dashboard-builder 가 보이면 성공
+cd ~ && git clone https://github.com/IrumHahn/openclaw-personal-dashboard.git
+openclaw skills install ./openclaw-personal-dashboard/skill/dashboard-builder --as dashboard-builder --agent main
+openclaw skills list | grep dashboard-builder     # ready 가 보이면 성공
 ```
+
+(`--agent main` 은 에이전트가 2명 이상일 때 필수. 호스팅어 템플릿의 상태 폴더는 `/data/.openclaw` 이며 `skills install` 이 알아서 넣는다.)
 
 그다음 OpenClaw 채팅에서:
 
 ```
-대시보드 만들어줘. 내 팀(team.json)과 HIA STATE.md 를 읽어서 1주차 기본 메뉴로 시작하고,
-메뉴마다 담당 직원을 제안해줘. 만들기 전에 표로 보여주고 내 확인을 받아줘.
+대시보드 만들어줘. 내 PC inbox 경로는 C:\Users\<이름>\Documents\openclaw-personal-dashboard\.data\inbox 야.
+내 팀(team.json)과 HIA STATE.md 를 읽어서 1주차 기본 메뉴로 시작하고, 메뉴마다 담당 직원을 제안해줘.
+만들기 전에 표로 보여주고 내 확인을 받아줘.
 ```
 
-스킬은 ① 재료 확인 → ② 메뉴 인터뷰 → ③ 미리보기·승인 → ④ 생성(`canvas/dashboard/`) → ⑤ PC 연결 안내 순으로 진행한다. 이후에는 "대시보드 업데이트해줘" 한마디로 칸반을 갱신한다. 절차: [`skill/dashboard-builder/SKILL.md`](skill/dashboard-builder/SKILL.md) · 메뉴 키: [`references/menu-tree.md`](skill/dashboard-builder/references/menu-tree.md) · 데이터 계약: [`references/sync-contract.md`](skill/dashboard-builder/references/sync-contract.md)
+스킬은 ① 재료·PC 노드·inbox 확인 → ② 메뉴 인터뷰 → ③ 미리보기·승인 → ④ 생성 → 전송 설정(`setup_transfer.mjs`, file-transfer 플러그인·노드 정책·명령 허용을 `config patch`) → 전송(`send_to_pc.mjs`, `file.write` + sha256 대조) 순으로 진행한다. 노드 **기능 승인**(`openclaw nodes approve <requestId>`)이 뜨면 사람이 한 번 실행한다. 이후에는 "대시보드 업데이트해줘" 한마디로 칸반을 갱신한다. 절차: [`skill/dashboard-builder/SKILL.md`](skill/dashboard-builder/SKILL.md) · 메뉴 키: [`references/menu-tree.md`](skill/dashboard-builder/references/menu-tree.md) · 데이터 계약: [`references/sync-contract.md`](skill/dashboard-builder/references/sync-contract.md)
 
 ## 동기화가 되는 원리와 조건
 
-PC 의 `/api/sync` 가 `OPENCLAW_SYNC_URL`(VPS 캔버스 폴더)에서 `manifest/config/seed.json` 을 **Bearer 토큰**으로 가져와 로컬 JSON 저장소에 병합한다. 조건: 게이트웨이가 Tailscale(비루프백)에 바인드돼 있고(`openclaw config get gateway.bind`), canvasHost 가 켜져 있어야 한다. 토큰은 서버 환경변수에만 있고 브라우저로 가지 않는다.
+VPS 게이트웨이가 OpenClaw 내장 **file-transfer 플러그인**의 `file.write` 노드 명령으로 PC 의 `.data/inbox/` 에 `seed → config → manifest.json` 을 쓴다. 앱은 30초마다 inbox 의 `manifest.version` 을 확인해 바뀌면 자동 병합한다(`GET/POST /api/sync`). 조건: PC 가 OpenClaw 노드로 페어링·기능 승인돼 있고, VPS 에 `setup_transfer.mjs` 가 넣는 설정(플러그인 활성, 노드별 `allowWritePaths: ["<inbox>/**"]`, `gateway.nodes.commands.allow`)이 있어야 한다. 토큰·IP 를 PC 에 넣을 필요가 없고, 에이전트는 inbox 밖에 쓸 수 없다. OpenClaw 2026.10.3 게이트웨이 + 2026.10.6 노드에서 실증(macOS 노드). Windows 노드는 실증 예정.
+
+(구버전 "당겨오기" 방식은 `OPENCLAW_SYNC_URL`+`OPENCLAW_GATEWAY_TOKEN` 을 설정하면 inbox 가 없을 때만 대체로 동작한다.)
 
 병합 규칙: `source+sourceId` 가 같으면 갱신, PC 에서 사용자가 바꾼 상태는 보존, 삭제는 전파하지 않음. 상세는 [sync-contract.md](skill/dashboard-builder/references/sync-contract.md). 동기화가 막히면 같은 파일을 **설정 > JSON 가져오기**에 붙여넣으면 된다(같은 규칙).
 
@@ -75,13 +80,14 @@ v0.1 과 같다. `.env.local` 의 `DASHBOARD_INGEST_TOKEN` 을 설정하고 `POS
 
 ```bash
 npm ci
-node --test tests/*.test.mjs     # 20 tests: 메뉴 트리·설정·병합·STATE 파서·빌더·동기화
+node --test tests/*.test.mjs     # 24 tests: 메뉴 트리·설정·병합·STATE 파서·빌더·전송(가짜 openclaw)·inbox
 npm run build
 ```
 
 - 기술 구성: Next.js 16 / React 19 / Lucide. 서버 전용 모듈은 `lib/config-store.js`, `lib/store.js`, `lib/registered-agents.js`. 순수 로직은 `lib/config.js`, `lib/merge.js`, `lib/sync.js`, `lib/menu-tree.js`.
 - 스킬 스크립트(`skill/dashboard-builder/scripts/`)는 Node 내장 모듈만 사용하며 npm 없이 VPS 에서 돈다.
-- 아직 실제 VPS 에서 end-to-end 동기화를 검증하지 않았다(단위 테스트·로컬 가져오기만). 배포 전 1회 확인 필요.
+- 실증: 호스팅어 VPS(OpenClaw 2026.10.3)에서 스킬 설치·`file.write` 전송(맥미니 노드)까지 확인. Windows 노드·실제 수강생 PC 는 개강 전 확인 예정.
+- 알려진 환경 이슈(호스팅어 템플릿): Codex 플러그인이 `EXDEV` 로 로드 실패할 수 있다 → `ln -s /tmp/oc-plugin-captures /data/.openclaw/tmp/plugin-captures`(node 소유) 후 컨테이너 재시작. `openclaw agents delete` 가 "not found" 를 내는 경우가 있다.
 
 ## 라이선스
 

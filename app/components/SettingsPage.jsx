@@ -5,7 +5,7 @@ import { ArrowDown, ArrowUp, Download, RefreshCw, RotateCcw, Star, Upload } from
 import { DEFAULT_FAVORITES, DEFAULT_MENU_KEYS, GROUPS, MENUS, MENU_BY_KEY } from '../../lib/menu-tree'
 import { MenuIcon, api, formatDateTime } from './shared'
 
-export default function SettingsPage({ config, onSave, onSync, syncing, syncConfigured, refresh }) {
+export default function SettingsPage({ config, onSave, onSync, syncing, syncConfigured, inbox, refresh }) {
   const [draft, setDraft] = useState(() => structuredClone(config))
   const [importText, setImportText] = useState('')
   const [message, setMessage] = useState('')
@@ -58,12 +58,13 @@ export default function SettingsPage({ config, onSave, onSync, syncing, syncConf
         <p className="fine-print">주차를 올리면 그 주차의 메뉴 자물쇠가 풀립니다. 동기화하면 VPS 쪽 주차가 더 높을 때 따라갑니다.</p>
       </section>
       <section className="surface"><div className="section-heading"><h2>동기화</h2></div>
-        <div className="system-line"><span>상태</span><strong>{syncConfigured ? '설정됨' : '.env.local 미설정'}</strong></div>
+        <div className="system-line"><span>받은 데이터</span><strong>{inbox?.present ? `버전 ${inbox.version}${inbox.isNew ? ' · 새 데이터' : ''}` : '아직 없음'}</strong></div>
         <div className="system-line"><span>마지막 성공</span><strong>{formatDateTime(config.sync.lastSuccessAt)}</strong></div>
         <div className="system-line"><span>버전</span><strong>{config.sync.lastVersion || '—'}</strong></div>
         {config.sync.lastError && <p className="fine-print error-text">{config.sync.lastError}</p>}
-        <div className="button-row"><button className="secondary-button" onClick={onSync} disabled={syncing || !syncConfigured}><RefreshCw size={14} />{syncing ? '가져오는 중…' : '지금 동기화'}</button><a className="secondary-button" href="/api/export" download><Download size={14} />내보내기</a></div>
-        <p className="fine-print">.env.local 예: <code>OPENCLAW_SYNC_URL=http://&lt;VPS Tailscale IP&gt;:18789/__openclaw__/canvas/dashboard/</code> · <code>OPENCLAW_GATEWAY_TOKEN=…</code> 변경 후 서버 재시작.</p>
+        <div className="button-row"><button className="secondary-button" onClick={onSync} disabled={syncing}><RefreshCw size={14} />{syncing ? '반영 중…' : '지금 반영'}</button><a className="secondary-button" href="/api/export" download><Download size={14} />내보내기</a></div>
+        <p className="fine-print">VPS 의 비서가 이 PC 의 OpenClaw 노드를 통해 아래 폴더에 파일을 넣으면 30초 안에 자동 반영됩니다. 비서에게 이 경로를 알려주세요:</p>
+        <p className="inbox-path"><code>{inbox?.dir || '.data/inbox'}</code></p>
       </section>
       <section className="surface card-wide"><div className="section-heading"><h2>메뉴와 담당</h2><button onClick={() => update({ menus: DEFAULT_MENU_KEYS.map(key => draft.menus.find(m => m.key === key) || { key, owner: '', enabledFromWeek: MENU_BY_KEY[key].defaultWeek }), favorites: DEFAULT_FAVORITES })}><RotateCcw size={13} /> 메뉴 순서 초기화</button></div>
         <ol className="menu-editor">{draft.menus.map((menu, index) => <li key={menu.key}><MenuIcon name={MENU_BY_KEY[menu.key].icon} /><strong>{MENU_BY_KEY[menu.key].label}</strong><small>{MENU_BY_KEY[menu.key].group}</small>
