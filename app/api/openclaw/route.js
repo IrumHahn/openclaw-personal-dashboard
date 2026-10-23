@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { NextResponse } from 'next/server'
+import { readRegisteredAgents } from '../../../lib/registered-agents'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -12,6 +13,7 @@ async function command(args) {
 }
 
 export async function GET() {
+  const registered = await readRegisteredAgents()
   const [statusResult, cronResult] = await Promise.allSettled([
     command(['status', '--json']),
     command(['cron', 'list', '--json']),
@@ -39,6 +41,8 @@ export async function GET() {
     runtimeVersion: status?.runtimeVersion || null,
     sessionCount: status?.sessions?.count ?? null,
     agents,
+    registeredAgents: registered.agents,
+    registeredSyncedAt: registered.syncedAt,
     jobs,
     statusError: status ? null : 'OpenClaw status is unavailable',
     cronError: cron ? null : 'OpenClaw automations are unavailable',
