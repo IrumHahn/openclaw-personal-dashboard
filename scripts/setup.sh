@@ -16,13 +16,14 @@ ok 'npm 패키지'
 
 if [ ! -f .env.local ]; then
   read -r -p '대시보드 이름 (기본: 내 AI 오피스): ' name; name=${name:-내 AI 오피스}
-  printf 'OPENCLAW_SYNC_URL=\nOPENCLAW_GATEWAY_TOKEN=\nDASHBOARD_PASSWORD=\nDASHBOARD_INGEST_TOKEN=\nNEXT_PUBLIC_DASHBOARD_NAME=%s\n' "$name" > .env.local
+  printf 'OPENCLAW_SYNC_URL=\nOPENCLAW_GATEWAY_TOKEN=\nDASHBOARD_PASSWORD=\nDASHBOARD_INGEST_TOKEN=\nNEXT_PUBLIC_DASHBOARD_NAME=%s\nDASHBOARD_INBOX_DIR=%s\n' "$name" "$HOME/Documents/openclaw-dashboard/inbox" > .env.local
   chmod 600 .env.local
   ok '.env.local 생성'
 else ok '.env.local 이미 있음 (건너뜀)'; fi
 
-mkdir -p .data/inbox
-inbox="$(cd .data/inbox && pwd -P)"
+inbox="$HOME/Documents/openclaw-dashboard/inbox"
+mkdir -p "$inbox"
+grep -q '^DASHBOARD_INBOX_DIR=' .env.local || printf 'DASHBOARD_INBOX_DIR=%s\n' "$inbox" >> .env.local
 ok "받은 데이터 폴더: $inbox"
 
 echo

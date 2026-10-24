@@ -26,6 +26,7 @@ export async function POST(request) {
     const inbox = await readInbox()
     const force = new URL(request.url).searchParams.get('force') === '1'
     if (inbox.present) {
+      if (inbox.problems?.length) return NextResponse.json({ error: `받은 데이터 일부가 깨져 있습니다(전송 중일 수 있음): ${inbox.problems.join(' / ')}` }, { status: 409 })
       if (!force && !inboxIsNew(inbox, config.sync.lastVersion)) return NextResponse.json({ ok: true, unchanged: true, version: inbox.version, source })
       bundle = inbox.bundle
     } else if (process.env.OPENCLAW_SYNC_URL && process.env.OPENCLAW_GATEWAY_TOKEN) {

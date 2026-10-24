@@ -1,8 +1,12 @@
-# 동기화 계약 — VPS → PC inbox (file.write)
+# 동기화 계약 — VPS → PC inbox
 
-## 전송 방식
+## 전송 방식 두 가지
 
-VPS 게이트웨이가 OpenClaw 내장 **file-transfer 플러그인**의 `file.write` 노드 명령으로, 페어링된 PC 노드의 `<inbox>/` 폴더에 파일 3개를 쓴다. PC 대시보드 앱은 `.data/inbox/manifest.json` 의 `version` 이 바뀌면 30초 안에 자동 반영한다.
+PC inbox 는 기본 **`문서\openclaw-dashboard\inbox`**(앱 `.env.local` 의 `DASHBOARD_INBOX_DIR`, 비우면 앱 폴더 `.data/inbox`). 앱은 `manifest.json` **또는** `manifest.b64` 의 `version` 이 바뀌면 30초 안에 자동 반영한다(둘 다 있으면 더 최근 것).
+
+### A. `file` — 헤드리스 노드(`openclaw node run`)
+
+VPS 게이트웨이가 OpenClaw 내장 **file-transfer 플러그인**의 `file.write` 노드 명령으로, 페어링된 PC 노드의 `<inbox>/` 폴더에 파일 3개를 쓴다.
 
 | 단계 | 어디서 | 무엇 |
 |---|---|---|
@@ -16,6 +20,23 @@ VPS 게이트웨이가 OpenClaw 내장 **file-transfer 플러그인**의 `file.w
 모두 `openclaw config patch` 로 적용되며 게이트웨이 재시작이 필요 없다(2026.10.3 확인). 경로 규칙: **절대경로**, 패턴은 glob `**`. macOS 는 `/tmp` 가 심볼릭링크라 `/private/tmp/...` 실제 경로를 쓴다. Windows 는 `C:/Users/.../.data/inbox` 처럼 슬래시로 정규화한다(스크립트가 한다). 최대 16 MB.
 
 보안: 정책이 `<inbox>/**` 만 허용하므로 에이전트가 PC 의 다른 곳에는 쓸 수 없다. inbox 파일은 로컬 전용이며 토큰을 담지 않는다(스크립트가 검사).
+
+### B. `hub` — Windows Hub 앱 노드(OpenClaw Companion, 수강생 기본)
+
+Hub 노드의 commands 는 `system.run`·`screen.snapshot` 등이고 **`file.write` 가 없다.** `system.run` 은 CLI `nodes invoke` 로 못 부르고(`reserved for shell execution; use the exec tool with host=node`) **에이전트의 exec 도구만** 쓸 수 있다. 그래서:
+
+| 단계 | 어디서 | 무엇 |
+|---|---|---|
+| PC 준비(한 번) | PC(사람) | Hub 앱 Settings > **Sandbox = Recommended, Documents = Read + write**. 기본 Locked Down 은 어떤 파일도 못 쓴다 |
+| 승인(한 번) | VPS(사람) | `devices approve` + `nodes approve`. Hub 앱 Permissions 에서 "Windows node" On |
+| 설정 | VPS | `setup_transfer.mjs --transport hub --inbox "%USERPROFILE%\Documents\openclaw-dashboard\inbox"` → pc.json 만 저장(게이트웨이 설정 변경 없음) |
+| 명령 생성 | VPS | `send_to_pc.mjs` → 파일 3개를 base64 → ≤6000자 청크 → 조각 `echo <청크> >"<inbox>\<name>.b64"`(첫 청크) / `>>`(이후), 맨 앞 `(if not exist … mkdir …)`, 맨 뒤 `type manifest.b64` → 조각들을 `&&` 로 이어 **한 줄 ≤7600자** 로 묶는다(`cmd /c …`). 보통 명령 1~2개 |
+| 실행 | VPS 에이전트 | exec(host=node) 로 commands 를 순서대로. 명령마다 PC 에 **허용 창(Allow Once / Deny)** — "항상 허용" 없음. 허용 목록은 원격(`approvals allowlist add --node`)으로 못 바꾼다(`Remote exec approval updates cannot add…`); PC 의 `%APPDATA%\OpenClawTray\exec-approvals.json` 기본은 `security: allowlist, ask: on-miss, askFallback: deny` |
+| 반영 | PC | 앱이 `.b64` 의 공백·CRLF 를 걷어내고 디코드 → JSON. 디코드 실패(전송 중) 파일이 하나라도 있으면 `problems` 로 표시하고 기다린다 |
+
+왜 되나: 샌드박스(AppContainer)는 **외부 .exe 실행**(powershell, whoami …→ `0xC0000142`)을 막지만 **cmd 내장 명령**(echo, type, 리다이렉션)과 Documents 쓰기는 허용한다. base64 는 `A-Z a-z 0-9 + / =` 뿐이라 cmd 특수문자 문제가 없다. `>` 앞에 공백을 두는 이유는 청크가 숫자로 끝날 때 `…1>file` 이 핸들 리다이렉션으로 읽히는 것을 피하기 위해서다(공백은 디코드 때 제거). 한 줄은 8191자 제한이라 청크 ≤ 6000.
+
+한계: Hub 는 종료코드를 돌려주지 않는다 → 마지막 `type` 출력으로 확인. 에이전트가 명령을 요약·축약하면 깨진다 → "글자 하나 바꾸지 말고" 지시가 필수. 실측: 7,112B JSON(한글·특수문자) 2청크 → PC 디코드 후 sha256 일치; 대시보드 3파일(4KB) → `.b64` 3개 → 앱이 `format: b64` 로 읽고 병합 성공(2026-10-24, Windows 365 Cloud PC, Hub core 2026.9.8-1).
 
 ## 파일 (VPS `~/.openclaw/workspace/dashboard/` → PC `<app>/.data/inbox/`)
 
@@ -46,8 +67,10 @@ VPS 게이트웨이가 OpenClaw 내장 **file-transfer 플러그인**의 `file.w
 
 ### pc.json (VPS 전용, 전송 대상 기억)
 ```json
-{ "nodeId": "c303…", "nodeName": "홍길동 PC", "inbox": "C:/Users/hong/Documents/openclaw-personal-dashboard/.data/inbox", "savedAt": "…" }
+{ "transport": "file", "nodeId": "c303…", "nodeName": "홍길동 PC", "inbox": "C:/Users/hong/Documents/openclaw-dashboard/inbox", "savedAt": "…" }
+{ "transport": "hub",  "nodeId": "c33d…", "nodeName": "Windows Node (PC-이름)", "inbox": "%USERPROFILE%\\Documents\\openclaw-dashboard\\inbox", "savedAt": "…" }
 ```
+`transport` 가 없으면 `file`. `hub` 의 inbox 는 Windows 경로(역슬래시)이며 `%VAR%` 를 PC 의 cmd 가 푼다.
 
 ## PC 쪽 병합 규칙 (`lib/merge.js`, `lib/sync.js`)
 
@@ -72,6 +95,11 @@ VPS 게이트웨이가 OpenClaw 내장 **file-transfer 플러그인**의 `file.w
 | `POLICY_DENIED: path does not match` | inbox 경로와 정책 패턴 불일치 | 설정 화면의 inbox 경로를 그대로 다시 `--inbox` 로. macOS 는 `/private/tmp` 실제 경로 |
 | `PARENT_NOT_FOUND` | inbox 상위 폴더 없음 | 앱을 한 번 실행하면 `.data/` 생성. `createParents` 는 켜져 있음 |
 | 전송은 OK 인데 화면 그대로 | version 동일 또는 앱 미실행 | 설정 > [지금 반영], 앱이 켜져 있는지 |
+| (hub) `exec-approvals-v2: UserDenied` | PC 허용 창 거부/시간초과(사용자가 자리에 없음) | PC 화면에서 Allow Once 후 같은 명령부터 재실행 |
+| (hub) `-1073741502` / `0xC0000142` | 외부 .exe 가 샌드박스에서 막힘 | 스크립트가 만든 cmd 명령만 사용(powershell 금지) |
+| (hub) 파일이 안 생김, 오류도 없음 | Sandbox Locked Down 또는 Documents 쓰기 꺼짐 | Hub Settings > Sandbox Recommended + Documents Read+write |
+| (hub) 앱 "일부 파일이 깨졌습니다" | 청크 누락/축약, 전송 중 | 해당 파일 명령을 첫 줄(`>`)부터 다시 실행 |
+| (hub) `system.run is reserved…` | CLI 로 직접 부름 | 스크립트가 아니라 에이전트 exec 도구로 실행 |
 | 동기화는 되는데 칸반이 빔 | STATE.md 섹션 | `manifest.reasons` 확인 |
 
 **대체 경로:** VPS 의 `dashboard/seed.json`(필요하면 `config.json`)을 PC 대시보드 **설정 > JSON 가져오기** 에 붙여넣는다. 같은 병합 규칙이 적용된다.

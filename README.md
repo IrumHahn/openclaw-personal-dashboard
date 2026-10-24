@@ -5,7 +5,7 @@
 ```
 VPS (OpenClaw)                                                      내 PC (OpenClaw 노드 + 이 앱)
 agent-team-onboarding → team.json ─┐                                openclaw-personal-dashboard (Next.js)
-HIA STATE.md                       ├→ dashboard-builder 스킬 ──file.write(OpenClaw file-transfer)──→ .data/inbox/*.json → 30초 안에 자동 반영
+HIA STATE.md                       ├→ dashboard-builder 스킬 ──Hub 앱: exec cmd echo(.b64) / 헤드리스: file.write──→ 문서\openclaw-dashboard\inbox → 30초 안에 자동 반영
 openclaw agents list               ┘                                                               └ 막히면 설정 > JSON 가져오기
 ```
 
@@ -50,7 +50,7 @@ openclaw skills list | grep dashboard-builder     # ready 가 보이면 성공
 그다음 OpenClaw 채팅에서:
 
 ```
-대시보드 만들어줘. 내 PC inbox 경로는 C:\Users\<이름>\Documents\openclaw-personal-dashboard\.data\inbox 야.
+대시보드 만들어줘. 내 PC는 OpenClaw Hub 앱 노드고, inbox는 문서 폴더의 openclaw-dashboard\inbox 야.
 내 팀(team.json)과 HIA STATE.md 를 읽어서 1주차 기본 메뉴로 시작하고, 메뉴마다 담당 직원을 제안해줘.
 만들기 전에 표로 보여주고 내 확인을 받아줘.
 ```
@@ -59,7 +59,12 @@ openclaw skills list | grep dashboard-builder     # ready 가 보이면 성공
 
 ## 동기화가 되는 원리와 조건
 
-VPS 게이트웨이가 OpenClaw 내장 **file-transfer 플러그인**의 `file.write` 노드 명령으로 PC 의 `.data/inbox/` 에 `seed → config → manifest.json` 을 쓴다. 앱은 30초마다 inbox 의 `manifest.version` 을 확인해 바뀌면 자동 병합한다(`GET/POST /api/sync`). 조건: PC 가 OpenClaw 노드로 페어링·기능 승인돼 있고, VPS 에 `setup_transfer.mjs` 가 넣는 설정(플러그인 활성, 노드별 `allowWritePaths: ["<inbox>/**"]`, `gateway.nodes.commands.allow`)이 있어야 한다. 토큰·IP 를 PC 에 넣을 필요가 없고, 에이전트는 inbox 밖에 쓸 수 없다. OpenClaw 2026.10.3 게이트웨이 + 2026.10.6 노드에서 실증(macOS 노드). Windows 노드는 실증 예정.
+PC inbox 는 `문서\openclaw-dashboard\inbox`(`DASHBOARD_INBOX_DIR`). 앱은 30초마다 inbox 의 `manifest.json`/`manifest.b64` 의 `version` 을 확인해 바뀌면 자동 병합한다(`GET/POST /api/sync`). 두 경로:
+
+- **Hub 앱 노드(수강생 기본)** — Windows OpenClaw Companion 에는 `file.write` 가 없어, 스킬이 파일을 base64 청크의 `cmd /c echo … >> *.b64` 명령으로 만들고 VPS 비서가 exec(host=node) 로 실행한다. 샌드박스(Recommended + Documents Read+write)에서 cmd 내장 명령은 허용되고 외부 .exe 는 막힌다. 명령마다 PC 허용 창(Allow Once)이 뜨므로 스킬이 명령을 1~2개로 묶는다. 실증: 2026-10-24 Windows 365 Cloud PC.
+- **헤드리스 노드(`openclaw node run`)** — 내장 **file-transfer 플러그인** `file.write` 로 직접 쓰고 sha256 대조. VPS 에 `setup_transfer.mjs` 가 넣는 설정(플러그인 활성, 노드별 `allowWritePaths: ["<inbox>/**"]`, `gateway.nodes.commands.allow`) 필요. 실증: macOS 노드 2026.10.6, Windows 헤드리스 노드 2026.9.2.
+
+둘 다 토큰·IP 를 PC 에 넣을 필요가 없고, 에이전트는 inbox 밖에 쓰지 않는다.
 
 (구버전 "당겨오기" 방식은 `OPENCLAW_SYNC_URL`+`OPENCLAW_GATEWAY_TOKEN` 을 설정하면 inbox 가 없을 때만 대체로 동작한다.)
 
@@ -80,7 +85,7 @@ v0.1 과 같다. `.env.local` 의 `DASHBOARD_INGEST_TOKEN` 을 설정하고 `POS
 
 ```bash
 npm ci
-node --test tests/*.test.mjs     # 24 tests: 메뉴 트리·설정·병합·STATE 파서·빌더·전송(가짜 openclaw)·inbox
+node --test tests/*.test.mjs     # 26 tests: 메뉴 트리·설정·병합·STATE 파서·빌더·전송(가짜 openclaw)·inbox
 npm run build
 ```
 

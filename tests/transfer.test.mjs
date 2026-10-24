@@ -77,3 +77,49 @@ test('send_to_pc writes seed→config→manifest with sha256 check and respects 
     assert.match(t.run('send_to_pc.mjs', ['--pc', pc, '--out', t.out]).stderr, /missing in/)
   } finally { t.cleanup() }
 })
+
+test('hub transport: setup saves pc.json without touching gateway config; send_to_pc emits echo-chunk commands (seed→config→manifest) and a trailing type', async () => {
+  const t = setup()
+  try {
+    const pc = path.join(t.temp, 'pc.json')
+    const r = t.run('setup_transfer.mjs', ['--node', 'My PC', '--inbox', '%USERPROFILE%/Documents/openclaw-dashboard/inbox/', '--transport', 'hub', '--save', pc])
+    assert.equal(r.status, 0, r.stderr)
+    const out = JSON.parse(r.stdout)
+    assert.equal(out.transport, 'hub')
+    assert.equal(out.inbox, '%USERPROFILE%\\Documents\\openclaw-dashboard\\inbox')
+    assert.equal(t.state().patches.length, 0)
+    assert.equal(JSON.parse(fs.readFileSync(pc, 'utf8')).transport, 'hub')
+    assert.ok(out.nextSteps.some(s => /Sandbox/.test(s)))
+    // 큰 seed 로 청크 분할 확인
+    const bigSeed = { version: 1, records: { tasks: Array.from({ length: 80 }, (_, i) => ({ title: `할 일 ${i} &|<>^%"'`, status: 'open', source: 's', sourceId: String(i) })) }, agents: [] }
+    fs.writeFileSync(path.join(t.out, 'seed.json'), JSON.stringify(bigSeed))
+    const s = t.run('send_to_pc.mjs', ['--pc', pc, '--out', t.out, '--chunk', '1000'])
+    assert.equal(s.status, 0, s.stderr)
+    const sent = JSON.parse(s.stdout)
+    assert.equal(sent.transport, 'hub'); assert.equal(sent.sent, false); assert.equal(sent.version, 'abc')
+    assert.deepEqual(sent.files.map(f => f.name), ['seed.json', 'config.json', 'manifest.json'])
+    assert.ok(sent.files[0].chunks > 1)
+    assert.equal(t.state().invokes.length, 0) // 게이트웨이 호출 없음
+    // 조각들은 && 로 묶여 허용 창 횟수를 줄인다. 첫 조각 mkdir, 마지막 조각 type.
+    assert.ok(sent.commands.length < sent.pieces)
+    assert.match(sent.commands[0], /^cmd \/c \(if not exist "[^"]+" mkdir "[^"]+"\) && echo /)
+    assert.match(sent.commands[sent.commands.length - 1], / && type "[^"]*manifest\.b64"$/)
+    const pieces = sent.commands.flatMap(c => { assert.ok(c.length <= 7600, `line ${c.length}`); return c.replace(/^cmd \/c /, '').split(' && ') })
+    assert.equal(pieces.length, sent.pieces)
+    const echoes = pieces.slice(1, -1)
+    for (const e of echoes) assert.match(e, /^echo [A-Za-z0-9+/=]+ >>?"%USERPROFILE%\\Documents\\openclaw-dashboard\\inbox\\(seed|config|manifest)\.b64"$/)
+    // 조각을 cmd 처럼 재생해 PC 앱 inbox 디코더가 원본을 복원하는지 확인 (echo 는 끝에 CRLF 를 붙인다)
+    const dir = path.join(t.temp, 'inbox'); fs.mkdirSync(dir)
+    for (const e of echoes) {
+      const m = e.match(/^echo (\S+) (>>?)"[^"]*\\([a-z]+)\.b64"$/)
+      const f = path.join(dir, `${m[3]}.b64`)
+      if (m[2] === '>') fs.writeFileSync(f, `${m[1]} \r\n`); else fs.appendFileSync(f, `${m[1]} \r\n`)
+    }
+    const { readInbox } = await import('../lib/inbox.js')
+    const inbox = await readInbox(dir)
+    assert.equal(inbox.version, 'abc'); assert.equal(inbox.format, 'b64'); assert.deepEqual(inbox.problems, [])
+    assert.equal(inbox.bundle.seed.records.tasks.length, 80)
+    assert.equal(inbox.bundle.seed.records.tasks[7].title, '할 일 7 &|<>^%"\'')
+    assert.ok(fs.existsSync(path.join(t.out, 'hub-commands.txt')))
+  } finally { t.cleanup() }
+})

@@ -58,7 +58,8 @@ export default function SettingsPage({ config, onSave, onSync, syncing, syncConf
         <p className="fine-print">주차를 올리면 그 주차의 메뉴 자물쇠가 풀립니다. 동기화하면 VPS 쪽 주차가 더 높을 때 따라갑니다.</p>
       </section>
       <section className="surface"><div className="section-heading"><h2>동기화</h2></div>
-        <div className="system-line"><span>받은 데이터</span><strong>{inbox?.present ? `버전 ${inbox.version}${inbox.isNew ? ' · 새 데이터' : ''}` : '아직 없음'}</strong></div>
+        <div className="system-line"><span>받은 데이터</span><strong>{inbox?.present ? `버전 ${inbox.version}${inbox.isNew ? ' · 새 데이터' : ''}${inbox.format === 'b64' ? ' · Hub 앱 경로' : ''}` : '아직 없음'}</strong></div>
+        {inbox?.problems?.length > 0 && <p className="fine-print error-text">받는 중이거나 일부 파일이 깨졌습니다: {inbox.problems.join(' / ')} — 비서에게 "대시보드 다시 보내줘"라고 하세요.</p>}
         <div className="system-line"><span>마지막 성공</span><strong>{formatDateTime(config.sync.lastSuccessAt)}</strong></div>
         <div className="system-line"><span>버전</span><strong>{config.sync.lastVersion || '—'}</strong></div>
         {config.sync.lastError && <p className="fine-print error-text">{config.sync.lastError}</p>}
