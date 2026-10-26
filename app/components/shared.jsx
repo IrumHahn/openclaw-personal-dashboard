@@ -4,12 +4,19 @@ import {
   Activity, BookOpen, Bot, CircleAlert, FileText, FolderKanban, Gauge, Globe, GraduationCap, Inbox, LayoutList, Library, Lightbulb,
   Mailbox, MessageCircle, MessageSquare, Mic, Newspaper, NotebookTabs, Package, Phone, Presentation, Radio, Search, Send, Settings,
   ShoppingCart, Sparkles, Ticket, Users, Youtube,
+  // 내 업무(커스텀 메뉴)용 — lib/menu-tree.js 의 EXTRA_ICONS 와 같은 목록
+  Briefcase, Calendar, Camera, Coffee, Heart, Star, ShoppingBag, Truck, Wallet, Music, Dumbbell, Utensils, Scissors, PenTool, Flower2,
+  Gift, Palette, Receipt, ClipboardList, Target, Megaphone, Stethoscope, Wrench, Plane, Dog, Home, Car, Leaf, Smile, Store, Handshake,
+  PiggyBank, Clapperboard, Sprout, Hammer,
 } from 'lucide-react'
 
 export const ICONS = {
   Activity, BookOpen, Bot, FileText, FolderKanban, Gauge, Globe, GraduationCap, Inbox, LayoutList, Library, Lightbulb, Mailbox,
   MessageCircle, MessageSquare, Mic, Newspaper, NotebookTabs, Package, Phone, Presentation, Radio, Search, Send, Settings, ShoppingCart,
   Sparkles, Ticket, Users, Youtube,
+  Briefcase, Calendar, Camera, Coffee, Heart, Star, ShoppingBag, Truck, Wallet, Music, Dumbbell, Utensils, Scissors, PenTool, Flower2,
+  Gift, Palette, Receipt, ClipboardList, Target, Megaphone, Stethoscope, Wrench, Plane, Dog, Home, Car, Leaf, Smile, Store, Handshake,
+  PiggyBank, Clapperboard, Sprout, Hammer,
 }
 
 export function MenuIcon({ name, size = 16 }) {
@@ -37,8 +44,8 @@ export function countOpen(records = []) {
   return records.filter(item => !['done', 'rejected'].includes(item.status)).length
 }
 
-export function Badge({ status }) {
-  return <span className={`badge badge-${status || 'open'}`}>{STATUS_LABELS[status] || status || '기록'}</span>
+export function Badge({ status, labels = {} }) {
+  return <span className={`badge badge-${status || 'open'}`}>{labels[status] || STATUS_LABELS[status] || status || '기록'}</span>
 }
 
 export function Empty({ children }) {

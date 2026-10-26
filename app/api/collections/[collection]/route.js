@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { addRecord, COLLECTIONS, mutateStore, readStore, updateRecord } from '../../../../lib/store'
+import { addRecord, isCollectionKey, mutateStore, readStore, updateRecord } from '../../../../lib/store'
 import { assertSameOrigin } from '../../../../lib/security'
 
 export const runtime = 'nodejs'
@@ -11,9 +11,9 @@ function invalid(error) {
 
 export async function GET(_request, { params }) {
   const { collection } = await params
-  if (!COLLECTIONS.includes(collection)) return NextResponse.json({ error: 'Unknown collection' }, { status: 404 })
+  if (!isCollectionKey(collection)) return NextResponse.json({ error: 'Unknown collection' }, { status: 404 })
   const data = await readStore()
-  return NextResponse.json({ records: data[collection] })
+  return NextResponse.json({ records: data[collection] || [] })
 }
 
 export async function POST(request, { params }) {
@@ -41,11 +41,11 @@ export async function DELETE(request, { params }) {
   try {
     assertSameOrigin(request)
     const { collection } = await params
-    if (!COLLECTIONS.includes(collection)) throw new Error('Unknown collection')
+    if (!isCollectionKey(collection)) throw new Error('Unknown collection')
     const id = new URL(request.url).searchParams.get('id')
     if (!id) throw new Error('Record ID is required')
     const deleted = await mutateStore(data => {
-      const index = data[collection].findIndex(item => item.id === id)
+      const index = (data[collection] || []).findIndex(item => item.id === id)
       if (index < 0) throw new Error('Record not found')
       return data[collection].splice(index, 1)[0]
     })

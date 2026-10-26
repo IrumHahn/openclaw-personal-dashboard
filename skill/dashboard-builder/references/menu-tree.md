@@ -37,6 +37,10 @@
 
 ★ = 1주차 기본 6개. `settings` 와 `agents` 는 빼도 항상 포함된다.
 
+### 내 업무 (커스텀 메뉴, `c-*`)
+
+위 30개 밖의, 그 사람만의 기록형 메뉴. 사이드바 맨 위 **「내 업무」** 그룹에 뜨고 기본 1주차부터 열린다. 업무 지도로 만든다 → `references/personalize.md`. 키는 `--menus`·`--owner`·`--favorites` 에도 쓸 수 있다(design.json 으로 먼저 정의한 뒤).
+
 ## 실행학교 주차별 추가 (제안)
 
 - 2주차: `kakao`, `meetingroom` (채널 연결 주) — 추가로 `sessions`, `calls`, `post`, `bizkakao` 가능

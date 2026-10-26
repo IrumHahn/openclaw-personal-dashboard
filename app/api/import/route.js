@@ -18,7 +18,7 @@ export async function POST(request) {
     const config = await readConfig()
     const result = await mutateStore(data => applyBundle({ bundle, config, data }))
     await saveRegisteredAgents(result.registeredAgents)
-    const saved = await writeConfig({ ...result.config, sync: { ...config.sync, lastSuccessAt: new Date().toISOString(), lastVersion: result.version || 'import', lastError: null } })
+    const saved = await writeConfig({ ...result.config, sync: { ...result.config.sync, lastSuccessAt: new Date().toISOString(), lastVersion: result.version || 'import', lastError: null } })
     return NextResponse.json({ ok: true, version: result.version, merge: result.merge, reasons: result.reasons, config: saved })
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 400 })

@@ -55,7 +55,18 @@ Hub 노드의 commands 는 `system.run`·`screen.snapshot` 등이고 **`file.wri
   "favorites": ["tasks", "agents", "email", "ideas", "notes", "settings"],
   "agents": [{ "id": "mira", "name": "미라", "emoji": "🧭", "role": "총괄 비서", "mission": "…", "coordinator": true, "menus": ["tasks", "agents"] }] }
 ```
-`menus[].key` 는 menu-tree 의 키(모르는 키는 PC 가 거부). `owner` 는 에이전트 ID 또는 빈 문자열. `enabledFromWeek` 생략 시 기본 주차.
+`menus[].key` 는 menu-tree 의 키 또는 `customMenus` 에 정의한 `c-*` 키(모르는 키는 PC 가 거부). `owner` 는 에이전트 ID 또는 빈 문자열. `enabledFromWeek` 생략 시 기본 주차.
+
+v0.3 개인화 필드(생략 가능, `references/personalize.md`·`widget-guide.md`):
+```json
+{ "customMenus": [{ "key": "c-bouquet", "label": "예약 꽃다발", "icon": "Flower2", "purpose": "…", "fields": ["title", "person", "dueAt", "body", "status"],
+                    "fieldLabels": { "person": "고객명" }, "statusLabels": { "open": "주문 접수" }, "kanban": true }],
+  "theme": { "preset": "sunset", "accent": "", "emoji": "💐", "tagline": "꽃이 늦지 않게" },
+  "widget": { "title": "이번 주 꽃다발 레이더", "html": "<!doctype html>…" } }
+```
+- 커스텀 메뉴의 기록은 seed `records["c-bouquet"]` 로 보낸다. PC 는 `c-*` 컬렉션을 처음 받을 때 만든다.
+- PC 반영 규칙: `customMenus` 는 VPS 값으로 교체(빠진 메뉴는 PC 메뉴·즐겨찾기에서도 빠짐). `theme`·`widget`·`favorites` 는 PC 설정에서도 고칠 수 있으므로 **VPS 값이 지난번 받은 것과 달라졌을 때만** 덮어쓴다(지문은 PC config `sync.remote`). 첫 동기화에서는 PC 값이 기본값일 때만 받는다.
+- 위젯은 PC 에서 `sandbox="allow-scripts"` iframe + CSP(`default-src 'none'`, 인라인 스크립트·스타일과 `data:` 이미지만)로 열린다. 앱 화면·API·저장소·외부 인터넷에 접근할 수 없고, 데이터는 앱이 `postMessage({ type: 'dashboard:data' })` 로 넣는다.
 
 ### seed.json
 ```json

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Menu } from 'lucide-react'
 import { defaultConfig, normalizeConfig, visibleMenus } from '../lib/config'
-import { MENU_BY_KEY, RECORD_KEYS } from '../lib/menu-tree'
+import { CUSTOM_GROUP, CUSTOM_KEY, MENU_BY_KEY, RECORD_KEYS, menuCatalog } from '../lib/menu-tree'
 import AgentsPage from './components/AgentsPage'
 import HomePage from './components/HomePage'
 import MenuCardPage from './components/MenuCardPage'
@@ -16,7 +16,7 @@ import { api } from './components/shared'
 export default function Dashboard() {
   const [active, setActive] = useState('home')
   const [mobileMenu, setMobileMenu] = useState(false)
-  const [openGroup, setOpenGroup] = useState('팀 운영')
+  const [openGroup, setOpenGroup] = useState(null)
   const [config, setConfig] = useState(() => defaultConfig())
   const [syncConfigured, setSyncConfigured] = useState(false)
   const [inbox, setInbox] = useState(null)
@@ -34,13 +34,15 @@ export default function Dashboard() {
   const refresh = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const [configPayload, systemPayload, ...collections] = await Promise.all([
-        api('/api/config'), api('/api/openclaw'), ...RECORD_KEYS.map(key => api(`/api/collections/${key}`)),
-      ])
-      setConfig(normalizeConfig(configPayload.config))
+      const [configPayload, systemPayload] = await Promise.all([api('/api/config'), api('/api/openclaw')])
+      const nextConfig = normalizeConfig(configPayload.config)
+      // 기본 기록형 메뉴 + 내 업무(커스텀 메뉴) 컬렉션
+      const keys = [...nextConfig.customMenus.map(menu => menu.key), ...RECORD_KEYS]
+      const collections = await Promise.all(keys.map(key => api(`/api/collections/${key}`)))
+      setConfig(nextConfig)
       setSyncConfigured(Boolean(configPayload.syncConfigured))
       setSystem(systemPayload)
-      setRecords(Object.fromEntries(RECORD_KEYS.map((key, index) => [key, collections[index].records])))
+      setRecords(Object.fromEntries(keys.map((key, index) => [key, collections[index].records])))
     } catch (cause) { setError(cause.message) }
     finally { setLoading(false) }
   }, [])
@@ -67,20 +69,31 @@ export default function Dashboard() {
     return () => { stopped = true; clearInterval(timer) }
   }, [refresh])
   useEffect(() => {
-    const applyHash = () => { const hash = window.location.hash.slice(1); if (hash === 'home' || MENU_BY_KEY[hash]) setActive(hash) }
+    const applyHash = () => { const hash = window.location.hash.slice(1); if (hash === 'home' || MENU_BY_KEY[hash] || CUSTOM_KEY.test(hash)) setActive(hash) }
     applyHash()
     window.addEventListener('hashchange', applyHash)
     try { const saved = localStorage.getItem('dashboard:view'); if (saved === 'list' || saved === 'kanban') setView(saved) } catch {}
     return () => window.removeEventListener('hashchange', applyHash)
   }, [])
 
+  const catalog = useMemo(() => menuCatalog(config.customMenus), [config])
   const menus = useMemo(() => visibleMenus(config), [config])
-  const current = MENU_BY_KEY[active] ? { ...MENU_BY_KEY[active], ...(menus.find(m => m.key === active) || { owner: '', enabledFromWeek: MENU_BY_KEY[active].defaultWeek, locked: false }) } : null
+  const currentEntry = catalog.byKey[active]
+  const current = currentEntry ? { ...currentEntry, ...(menus.find(m => m.key === active) || { owner: '', enabledFromWeek: currentEntry.defaultWeek, locked: false }) } : null
+  const shownGroup = openGroup ?? (config.customMenus.length ? CUSTOM_GROUP : '팀 운영')
+
+  // 테마: <html data-theme> + 강조색 덮어쓰기. 색 토큰은 style.css 에 있다.
+  useEffect(() => {
+    const root = document.documentElement
+    root.dataset.theme = config.theme.preset
+    if (config.theme.accent) root.style.setProperty('--accent', config.theme.accent)
+    else root.style.removeProperty('--accent')
+  }, [config.theme.preset, config.theme.accent])
 
   function navigate(key) {
     setActive(key); setSearch(''); setMobileMenu(false); setNotice('')
     window.location.hash = key
-    const group = MENU_BY_KEY[key]?.group
+    const group = catalog.byKey[key]?.group
     if (group) setOpenGroup(group)
   }
   function chooseView(next) { setView(next); try { localStorage.setItem('dashboard:view', next) } catch {} }
@@ -119,14 +132,14 @@ export default function Dashboard() {
   return <div className="shell">
     <button className="mobile-menu-button" type="button" onClick={() => setMobileMenu(true)} aria-label="메뉴 열기"><Menu size={21} /></button>
     {mobileMenu && <button className="scrim" type="button" onClick={() => setMobileMenu(false)} aria-label="메뉴 닫기" />}
-    <Sidebar config={config} menus={menus} active={active} navigate={navigate} mobileMenu={mobileMenu} setMobileMenu={setMobileMenu} openGroup={openGroup} setOpenGroup={setOpenGroup} />
+    <Sidebar config={config} groups={catalog.groups} menus={menus} active={active} navigate={navigate} mobileMenu={mobileMenu} setMobileMenu={setMobileMenu} openGroup={shownGroup} setOpenGroup={setOpenGroup} />
     <main className="main"><div className="content">
       {error && <div className="error-bar" role="alert">{error}<button onClick={refresh}>다시 시도</button></div>}
       {notice && <div className="notice">{notice}</div>}
-      {active === 'home' || !current ? <HomePage config={config} records={records} system={system} loading={loading} navigate={navigate} onSync={sync} syncing={syncing} syncConfigured={syncConfigured} inbox={inbox} />
+      {active === 'home' || !current ? <HomePage config={config} catalog={catalog} records={records} system={system} loading={loading} navigate={navigate} onSync={sync} syncing={syncing} syncConfigured={syncConfigured} inbox={inbox} />
         : active === 'agents' ? <AgentsPage config={config} menus={menus} system={system} loading={loading} navigate={navigate} />
         : active === 'operations' ? <OperationsPage system={system} loading={loading} />
-        : active === 'settings' ? <SettingsPage key={config.sync.lastSuccessAt || 'settings'} config={config} onSave={saveConfig} onSync={sync} syncing={syncing} syncConfigured={syncConfigured} inbox={inbox} refresh={refresh} />
+        : active === 'settings' ? <SettingsPage key={config.sync.lastSuccessAt || 'settings'} config={config} catalog={catalog} onSave={saveConfig} onSync={sync} syncing={syncing} syncConfigured={syncConfigured} inbox={inbox} refresh={refresh} />
         : current.kind === 'record' && !current.locked ? <RecordList menu={current} config={config} items={currentItems} loading={loading} search={search} setSearch={setSearch} view={view} setView={chooseView} onAdd={() => { setEditing(null); setFormOpen(true) }} onEdit={item => { setEditing(item); setFormOpen(true) }} onRemove={remove} onStatus={setStatus} />
         : <MenuCardPage menu={current} config={config} records={records} navigate={navigate} />}
     </div></main>

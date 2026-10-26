@@ -1,4 +1,4 @@
-# OpenClaw Personal Dashboard — 내 AI 오피스 (v0.2)
+# OpenClaw Personal Dashboard — 내 AI 오피스 (v0.3)
 
 내 PC 에서 돌아가는 개인 AI 오피스 화면 + VPS 의 OpenClaw 에이전트가 그 화면의 데이터를 채워 주는 **dashboard-builder 스킬**. 팀 한이룸 AI Office v2 의 메뉴 구조(5그룹 30메뉴)를 따르되, 원본의 코드·계정·업무 데이터는 포함하지 않는다.
 
@@ -9,7 +9,11 @@ HIA STATE.md                       ├→ dashboard-builder 스킬 ──Hub 앱
 openclaw agents list               ┘                                                               └ 막히면 설정 > JSON 가져오기
 ```
 
-## 화면 (v0.2)
+## 화면 (v0.3)
+
+- **내 업무**(v0.3): 업무 지도에서 뽑은 나만의 메뉴 최대 6개. 칸 이름·칸반 상태 이름까지 내 말로 (예: 꽃집 "예약 꽃다발 — 주문 접수 → 제작 중 → 픽업 대기 → 전달 완료")
+- **테마**(v0.3): 6가지 분위기(올리브·바다·노을·숲·모노·미드나잇) + 강조색 + 로고 이모지 + 홈 한 줄
+- **나의 위젯**(v0.3): 홈 상단에 직접 만든 HTML 한 장. 격리된 칸(외부 통신 차단)에서 열리고 내 기록 숫자를 받아 그린다
 
 - **홈**: 즐겨찾기 6타일 · 최근 움직임 · 팀과 시스템 · [동기화] 버튼
 - **업무현황**: 칸반(대기 / 진행 중 / 검토 대기 / 완료) ↔ 목록. 담당 직원 칩. 버튼으로 상태 이동
@@ -51,11 +55,11 @@ openclaw skills list | grep dashboard-builder     # ready 가 보이면 성공
 
 ```
 대시보드 만들어줘. 내 PC는 OpenClaw Hub 앱 노드고, inbox는 문서 폴더의 openclaw-dashboard\inbox 야.
-내 팀(team.json)과 HIA STATE.md 를 읽어서 1주차 기본 메뉴로 시작하고, 메뉴마다 담당 직원을 제안해줘.
-만들기 전에 표로 보여주고 내 확인을 받아줘.
+내 업무 지도(my-work-map.md)를 먼저 보고 내 업무에 맞는 메뉴와 테마를 제안해줘. 그다음 팀(team.json)과 HIA STATE.md 로
+기본 메뉴·담당 직원을 붙이고, 만들기 전에 표로 보여주고 내 확인을 받아줘.
 ```
 
-스킬은 ① 재료·PC 노드·inbox 확인 → ② 메뉴 인터뷰 → ③ 미리보기·승인 → ④ 생성 → 전송 설정(`setup_transfer.mjs`, file-transfer 플러그인·노드 정책·명령 허용을 `config patch`) → 전송(`send_to_pc.mjs`, `file.write` + sha256 대조) 순으로 진행한다. 노드 **기능 승인**(`openclaw nodes approve <requestId>`)이 뜨면 사람이 한 번 실행한다. 이후에는 "대시보드 업데이트해줘" 한마디로 칸반을 갱신한다. 절차: [`skill/dashboard-builder/SKILL.md`](skill/dashboard-builder/SKILL.md) · 메뉴 키: [`references/menu-tree.md`](skill/dashboard-builder/references/menu-tree.md) · 데이터 계약: [`references/sync-contract.md`](skill/dashboard-builder/references/sync-contract.md)
+스킬은 ① 재료·PC 노드·inbox 확인 → ② 개인화 인터뷰(내 업무 → 분위기 → 기본 메뉴) → ③ 미리보기·승인 → ④ 생성 → 전송 설정(`setup_transfer.mjs`, file-transfer 플러그인·노드 정책·명령 허용을 `config patch`) → 전송(`send_to_pc.mjs`, `file.write` + sha256 대조) 순으로 진행한다. 노드 **기능 승인**(`openclaw nodes approve <requestId>`)이 뜨면 사람이 한 번 실행한다. 이후에는 "대시보드 업데이트해줘" 한마디로 칸반을 갱신하고, "내 대시보드 위젯 만들어줘"로 홈 위젯을 만든다. 절차: [`skill/dashboard-builder/SKILL.md`](skill/dashboard-builder/SKILL.md) · 메뉴 키: [`references/menu-tree.md`](skill/dashboard-builder/references/menu-tree.md) · 데이터 계약: [`references/sync-contract.md`](skill/dashboard-builder/references/sync-contract.md) · 개인화: [`references/personalize.md`](skill/dashboard-builder/references/personalize.md) · 위젯: [`references/widget-guide.md`](skill/dashboard-builder/references/widget-guide.md)
 
 ## 동기화가 되는 원리와 조건
 

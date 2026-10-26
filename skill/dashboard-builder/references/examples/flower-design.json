@@ -1,0 +1,32 @@
+{
+  "customMenus": [
+    {
+      "key": "c-bouquet",
+      "label": "예약 꽃다발",
+      "icon": "Flower2",
+      "purpose": "픽업 날짜별 꽃다발 주문을 놓치지 않게 관리합니다.",
+      "fields": ["person", "dueAt", "body", "status"],
+      "fieldLabels": { "person": "고객명", "dueAt": "픽업일", "body": "꽃 구성 / 메모" },
+      "statusLabels": { "open": "주문 접수", "working": "제작 중", "waiting": "픽업 대기", "done": "전달 완료" },
+      "kanban": true,
+      "owner": "flora"
+    },
+    {
+      "key": "c-regulars",
+      "label": "단골 기념일",
+      "icon": "Gift",
+      "purpose": "단골 손님의 기념일을 미리 알려 먼저 연락합니다.",
+      "fields": ["person", "date", "body"],
+      "fieldLabels": { "person": "단골 이름", "date": "기념일", "body": "지난번 주문 / 취향" }
+    },
+    {
+      "key": "c-market",
+      "label": "새벽 경매 메모",
+      "icon": "Receipt",
+      "purpose": "양재 꽃시장 경매가와 들여올 꽃을 기록합니다.",
+      "fields": ["body", "date", "link"],
+      "fieldLabels": { "body": "품목 · 단가", "date": "경매일" }
+    }
+  ],
+  "theme": { "preset": "sunset", "accent": "", "emoji": "💐", "tagline": "꽃이 늦지 않게, 단골이 잊히지 않게" }
+}
