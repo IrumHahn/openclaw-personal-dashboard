@@ -83,7 +83,7 @@ export function normalizeWidget(input) {
   if (html.length > MAX_WIDGET_HTML) throw new Error(`widget.html is too large (${html.length} > ${MAX_WIDGET_HTML} chars)`)
   // 위젯은 격리 화면에서 외부 통신이 막힌다. 외부 자원을 쓰면 PC 에서 빈 칸이 되므로 미리 알려 준다.
   // 가상 오피스 키트 CDN(jsDelivr 의 IrumHahn/openclaw-virtual-office)만 예외 — PC 앱의 위젯 CSP 가 같은 주소를 허용한다.
-  const stripped = html.replace(/https:\/\/cdn\.jsdelivr\.net\/gh\/IrumHahn\/openclaw-virtual-office@[^"'\s)]+/g, 'cdn:ok').replace(/https:\/\/fonts\.(googleapis|gstatic)\.com\/[^"'\s)]*/g, 'cdn:ok')
+  const stripped = html.replace(/https:\/\/cdn\.jsdelivr\.net\/gh\/IrumHahn\/openclaw-virtual-office@main\/[^"'\s)]+/g, 'cdn:ok').replace(/https:\/\/fonts\.(googleapis|gstatic)\.com\/[^"'\s)]*/g, 'cdn:ok')
   const external = stripped.match(/<(script|link|img|iframe)[^>]+(src|href)\s*=\s*["']?https?:/i)
   if (external) throw new Error(`widget uses an external ${external[1]} (${external[2]}=http…). Inline everything — external loads are blocked on the PC`)
   return { title: cleanText(input.title, 40) || '나의 위젯', html }

@@ -20,7 +20,7 @@
 | 규칙 | 이유 |
 |---|---|
 | HTML 파일 하나, **CSS·JS 전부 인라인** | 위젯은 격리 화면(sandbox)에서 열리고 외부 통신이 막혀 있다 |
-| 외부 `<script src=http…>`·CDN 라이브러리·웹폰트·외부 이미지 금지 | CSP 가 막는다. 스크립트가 미리 검사해 거부한다. 차트는 인라인 SVG/CSS 로 그린다. 이미지는 `data:` URI 만. **예외 하나**: 가상 오피스 키트 CDN(`https://cdn.jsdelivr.net/gh/IrumHahn/openclaw-virtual-office@…`)과 Google Fonts 는 허용(v0.4) — `virtual-office` 스킬이 만든 widget.html 이 여기서 배경·캐릭터를 읽는다 |
+| 외부 `<script src=http…>`·CDN 라이브러리·웹폰트·외부 이미지 금지 | CSP 가 막는다. 스크립트가 미리 검사해 거부한다. 차트는 인라인 SVG/CSS 로 그린다. 이미지는 `data:` URI 만. **예외 하나**: 가상 오피스 키트 CDN(`https://cdn.jsdelivr.net/gh/IrumHahn/openclaw-virtual-office@main/…`)과 Google Fonts 는 허용(v0.4) — `virtual-office` 스킬이 만든 widget.html 이 여기서 배경·캐릭터를 읽는다 |
 | `fetch`·API 호출 금지 | 막혀 있다. 데이터는 앱이 넣어 준다(아래) |
 | 60,000자 이하, **가능하면 8,000자 안쪽** | config.json 에 실려 PC 로 간다. Windows Hub 앱 경로는 약 6,000자(base64)마다 명령이 하나씩 늘어 PC 허용 창도 늘어난다(꽃집 예시 4.5KB → 허용 창 3번). 보내기 전에 "허용 창 N번"을 미리 알린다 |
 | 변수 이름에 `token`·`password`·`secret`·`api_key` 를 쓰지 않는다 | 비밀값 검사가 오탐해 빌드가 멈춘다(종료코드 3) |
