@@ -2,7 +2,7 @@
 // VPS 게이트웨이가 수강생 PC(노드)에 대시보드 파일을 쓸 수 있게 준비한다. 모두 `openclaw config patch` 로, 재시작 불필요.
 //   1) file-transfer 플러그인 허용·활성 + policyVersion 2
 //   2) 해당 노드의 쓰기 허용 경로 = PC 대시보드 inbox 폴더 (glob **)
-//   3) gateway.nodes.commands.allow 에 file.write / file.stat 추가
+//   3) gateway.nodes.commands.allow 에 file.write / file.stat / file.create / file.fetch(수습 채점 읽기) 추가
 //   4) 노드 기능 승인 대기(pending) 가 있으면 알려준다 — 승인은 사람이 `openclaw nodes approve <requestId>`
 // 사용: node setup_transfer.mjs --node <nodeId|name> --inbox "<PC 절대경로>" [--transport file|hub] [--dry-run] [--save <pc.json>]
 //   --transport file (기본): 헤드리스 노드(openclaw node run). 위 1)~4) 를 모두 한다.
@@ -44,7 +44,7 @@ export function normalizeInbox(p) {
 }
 
 export function buildPatch({ nodeId, inbox, ask, existingAllow }) {
-  const allow = new Set([...(Array.isArray(existingAllow) ? existingAllow : []), 'file.write', 'file.stat', 'file.create'])
+  const allow = new Set([...(Array.isArray(existingAllow) ? existingAllow : []), 'file.write', 'file.stat', 'file.create', 'file.fetch'])
   return {
     plugins: {
       allow: undefined, // 아래에서 채움 (plugins.allow 는 배열 교체라 기존 값을 합쳐야 한다)

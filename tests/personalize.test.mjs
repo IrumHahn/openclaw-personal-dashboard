@@ -128,7 +128,7 @@ test('build --design puts custom menus first, keeps them on update, and the app 
     const config = t.read('config.json')
     assert.deepEqual(config.menus.slice(0, 2).map(m => m.key), ['c-bouquet', 'c-regulars'])
     assert.equal(config.menus[0].owner, 'flora')
-    assert.deepEqual(config.favorites, ['c-bouquet', 'c-regulars', 'tasks', 'agents', 'email', 'ideas'])
+    assert.deepEqual(config.favorites, ['c-bouquet', 'c-regulars', 'tasks', 'ojt', 'agents', 'email'])
     assert.equal(config.theme.preset, 'sunset')
     assert.equal(t.read('manifest.json').counts.customMenus, 2)
     assert.equal(t.read('manifest.json').generator, 'dashboard-builder/0.3')

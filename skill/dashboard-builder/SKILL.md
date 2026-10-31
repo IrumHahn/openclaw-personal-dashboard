@@ -1,6 +1,6 @@
 ---
 name: dashboard-builder
-description: 업무 지도(my-work-map.md)·팀 온보딩 결과(team.json)·HIA STATE.md·OpenClaw 에이전트 목록으로 사용자의 "내 AI 오피스" 대시보드 데이터(내 업무 커스텀 메뉴·테마·나의 위젯·메뉴·담당 직원·칸반·즐겨찾기·주차)를 만들고, 페어링된 PC 노드로 보내(헤드리스 노드는 file.write, Windows Hub 앱 노드는 exec cmd echo) PC 화면에 반영되게 한다. "대시보드 만들어줘", "대시보드 업데이트해줘", "메뉴 추가해줘", "테마 바꿔줘", "내 대시보드 위젯 만들어줘", "내 AI 오피스 만들어줘" 또는 "build my dashboard", "update the dashboard" 에 사용. 대시보드 앱 자체(Next.js)를 PC 에 설치·실행하는 스킬은 아니다.
+description: 업무 지도(my-work-map.md)·팀 온보딩 결과(team.json)·HIA STATE.md·OpenClaw 에이전트 목록으로 사용자의 "내 AI 오피스" 대시보드 데이터(내 업무 커스텀 메뉴·테마·나의 위젯·메뉴·담당 직원·칸반·즐겨찾기·주차)를 만들고, 페어링된 PC 노드로 보내(헤드리스 노드는 file.write, Windows Hub 앱 노드는 exec cmd echo) PC 화면에 반영되게 한다. "대시보드 만들어줘", "대시보드 업데이트해줘", "메뉴 추가해줘", "테마 바꿔줘", "내 대시보드 위젯 만들어줘", "내 AI 오피스 만들어줘", "수습 보고를 대시보드로 보내줘", "대시보드 채점 가져와" 또는 "build my dashboard", "update the dashboard" 에 사용. 대시보드 앱 자체(Next.js)를 PC 에 설치·실행하는 스킬은 아니다.
 ---
 
 # Dashboard Builder — 팀이 보이는 내 AI 오피스
@@ -114,9 +114,34 @@ node <skill-dir>/scripts/check_sync.mjs
 
 `references/widget-guide.md` 를 따른다. ① 2문항 인터뷰(가장 먼저 알고 싶은 숫자 하나 · 보고 나서 할 행동) → ② `~/.openclaw/workspace/dashboard/widget.html` 작성(인라인 CSS·JS만, 외부 자원·fetch 금지, `dashboard:data` 메시지로 데이터 받기) → ③ 무엇을 보여주는지 말로 미리보기, 확인 → ④ `build_dashboard.mjs --widget … --widget-title …` → `send_to_pc.mjs`. 예시를 베끼지 말고 그 사람의 내 업무 메뉴 데이터를 쓴다.
 
+## 7. 수습 보고와 채점 ("수습 보고를 대시보드로 보내줘" · "대시보드 채점 가져와")
+
+수습(OJT) 업무의 보고를 PC 대시보드 「수습」 메뉴에 올리고, 대표가 거기서 누른 👍 ✏️ ❌ 를 읽어 와 반영한다. 장부는 `~/.openclaw/workspace/dashboard/ojt.json` 하나이고 `scripts/ojt.mjs` 로만 고친다(JSON 을 손으로 고치지 않는다).
+
+```bash
+S=<skill-dir>/scripts
+# 업무 카드(처음 한 번, 등급·최근 배운 것이 바뀔 때마다). 담당 직원 id 는 team.json 의 id
+node $S/ojt.mjs job --id ad-log --title "쿠팡 광고 일지" --agent ana --level L1 --lesson "11/8 ROAS 에 VAT 포함"
+# 보고 1건(본문은 파일로 넘기는 게 안전하다). 같은 --id 로 다시 부르면 고쳐 쓴다
+node $S/ojt.mjs report --job ad-log --title "11/9 광고 일지" --date 2026-11-09 --id 1109 --body-file /tmp/report.md
+# 보내면서 채점도 읽어 오기 → (1) build → (3) send 에 --with-grades
+node $S/build_dashboard.mjs && node $S/send_to_pc.mjs --pc ~/.openclaw/workspace/dashboard/pc.json --with-grades
+#   file: 결과의 grades.file(grades-latest.json) → node $S/ojt.mjs grades --file <그 파일>
+#   hub : 마지막 명령 출력(===OJT-GRADES-BEGIN=== … ===OJT-GRADES-END===)을 파일로 저장 → node $S/ojt.mjs grades --hub-output <파일>
+# 채점만 읽기(아침 브리핑 전): send_to_pc.mjs --pc … --grades-only
+```
+
+채점 하나마다 할 일:
+- 👍 → 그 업무의 `jobs/<업무>/record.md` 에 한 줄(날짜·👍·보고 제목).
+- ✏️·❌ → **"제가 틀린 이유는 ○○ 같습니다"** 가설 → `lessons.md` 한 줄 + `job.md` 수정안을 텔레그램으로 대표에게 보여 주고 **승인받은 뒤** 고친다. record.md 에도 한 줄.
+- 다 처리했으면 `node $S/ojt.mjs ack --from <같은 파일>` → 최근 배운 것이 바뀌었으면 `ojt.mjs job --id … --lesson "…"` → (1) build → (3) send. PC 화면이 **반영됨 ✓** 으로 바뀐다.
+
+PC 화면의 연속 👍 숫자는 보여주기용이다. 승급은 record.md 기준으로 비서가 제안하고 대표가 승인한다. 대표가 PC 허용 창을 못 눌러 텔레그램에 `[채점] … (id report:…)` 문장을 붙여 넣으면, 그 내용으로 위 처리를 바로 하고 `ack` 는 다음 `--with-grades` 때 한다(채점 시각은 PC 파일에만 있다).
+
 ## 경계
 
 - PC 에 앱을 설치하지 않는다. inbox 폴더 밖에는 아무것도 쓰지 않는다 — `file` 은 정책이 막고, `hub` 는 스크립트가 만든 `echo … >> <inbox>\*.b64` 명령 외에는 exec 로 아무것도 실행하지 않는다.
 - 외부 서비스(카톡·메일·쿠팡 등)와 연동하지 않는다. 카드형 메뉴는 "연동 전"으로 표시된다. 위젯도 외부 통신이 막힌 격리 화면에서 돈다(앱이 넣어 주는 데이터만 쓴다).
-- 게이트웨이 설정 변경은 `setup_transfer.mjs` 가 하는 것(file-transfer 활성·노드 정책·`file.*` 명령 허용)만. 토큰·바인드·다른 플러그인은 건드리지 않는다.
+- 수습 채점은 PC 에서만 만든다. 비서는 채점을 지어내거나 고치지 않고, 읽고(`grades`) 반영했다고 알리기(`ack`)만 한다. hub 에서 읽기는 `type <inbox>\grades.b64` 한 줄뿐이다.
+- 게이트웨이 설정 변경은 `setup_transfer.mjs` 가 하는 것(file-transfer 활성·노드 정책·`file.*` 명령 허용 — 채점 읽기용 `file.fetch` 포함)만. 토큰·바인드·다른 플러그인은 건드리지 않는다.
 - 노드 기능 승인(`nodes approve`)은 사람이 한다. 스킬이 대신 승인하지 않는다.

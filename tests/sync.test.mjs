@@ -9,7 +9,7 @@ test('remote config adds menus/owners/agents/week but keeps local order and favo
   const local = defaultConfig()
   local.favorites = ['notes', 'tasks']
   const merged = applyRemoteConfig(local, remote)
-  assert.deepEqual(merged.menus.map(m => m.key), ['tasks', 'agents', 'email', 'ideas', 'notes', 'settings', 'kakao'])
+  assert.deepEqual(merged.menus.map(m => m.key), ['tasks', 'ojt', 'agents', 'email', 'ideas', 'notes', 'settings', 'kakao'])
   assert.equal(merged.menus.find(m => m.key === 'tasks').owner, 'mira')
   assert.deepEqual(merged.favorites, ['notes', 'tasks'])
   assert.equal(merged.week, 2)

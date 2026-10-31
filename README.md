@@ -1,4 +1,4 @@
-# OpenClaw Personal Dashboard — 내 AI 오피스 (v0.4)
+# OpenClaw Personal Dashboard — 내 AI 오피스 (v0.5)
 
 내 PC 에서 돌아가는 개인 AI 오피스 화면 + VPS 의 OpenClaw 에이전트가 그 화면의 데이터를 채워 주는 **dashboard-builder 스킬**. 팀 한이룸 AI Office v2 의 메뉴 구조(5그룹 30메뉴)를 따르되, 원본의 코드·계정·업무 데이터는 포함하지 않는다.
 
@@ -16,6 +16,7 @@ openclaw agents list               ┘                                          
 - **나의 위젯**(v0.3): 홈 상단에 직접 만든 HTML 한 장. 격리된 칸(외부 통신 차단)에서 열리고 내 기록 숫자를 받아 그린다
 - **가상 오피스 위젯**(v0.4): 위젯 CSP 가 [openclaw-virtual-office](https://github.com/IrumHahn/openclaw-virtual-office) 키트의 CDN(jsDelivr)만 추가로 허용 → `virtual-office` 스킬이 만든 라이브 사무실(템플릿 5종)이 홈 맨 위에 뜬다
 
+- **수습**(v0.5): AI 직원이 맡은 업무 1개의 보고를 업무별로 모아 보고 **👍 ✏️ ❌ 로 채점**(✏️·❌는 한 줄 이유). 채점은 inbox 의 `grades.json` 으로 비서에게 돌아가고, 비서가 설명서를 고친 뒤 **반영됨 ✓** 을 돌려준다. 업무 카드에 등급(L0~L4)·연속 👍(목표 5)·최근 배운 것. PC 허용 창을 못 누를 때는 [텔레그램용 복사]
 - **홈**: 즐겨찾기 6타일 · 최근 움직임 · 팀과 시스템 · [동기화] 버튼
 - **업무현황**: 칸반(대기 / 진행 중 / 검토 대기 / 완료) ↔ 목록. 담당 직원 칩. 버튼으로 상태 이동
 - **팀관리**: 조직도(team.json) ⨝ VPS 등록 상태 ⨝ 이 PC 의 CLI. 담당 없는 메뉴 알림

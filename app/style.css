@@ -118,3 +118,19 @@ code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;b
 @media(max-width:1100px){.theme-presets{grid-template-columns:repeat(3,minmax(0,1fr))}.theme-fields{grid-template-columns:1fr 1fr}.theme-tagline{grid-column:1 / -1}}
 @media(max-width:680px){.theme-presets{grid-template-columns:repeat(2,minmax(0,1fr))}.theme-fields{grid-template-columns:1fr}}
 .brand>div{min-width:0;flex:1}.brand strong{overflow:hidden;text-overflow:ellipsis}
+/* v0.5 수습(OJT) — 보고 채점 */
+.ojt-counters{display:flex;gap:8px;flex-wrap:wrap}.ojt-counters strong{font-weight:700;color:var(--ink)}
+.ojt-job{margin:0 0 18px}.ojt-job-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:12px}.ojt-job-head h2{font-family:var(--display);font-size:18px;letter-spacing:-.04em;margin:0 0 8px}
+.ojt-level{display:inline-flex;border-radius:20px;padding:2px 8px;background:var(--wash);color:var(--ink-2);font-weight:700}
+.ojt-streak{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none}.ojt-streak small{font-size:10px;color:var(--muted)}.ojt-dots{display:flex;gap:4px}.ojt-dots i{width:12px;height:12px;border-radius:50%;border:1px solid var(--accent-line);background:var(--surface)}.ojt-dots i.on{background:var(--accent);border-color:var(--accent)}
+.ojt-lesson{font-size:12px;color:var(--ink-2);background:var(--accent-soft);padding:9px 12px;margin:0 0 12px;line-height:1.5}.ojt-lesson strong{color:var(--accent-dark);margin-right:6px}
+.ojt-report{border-top:1px solid var(--border-soft);padding:12px 0}.ojt-report-top{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;border:0;background:transparent;padding:0;text-align:left;color:var(--ink)}
+.ojt-report-title{font-size:13px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ojt-report-date{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--faint);flex:none}
+.ojt-report-body{white-space:pre-wrap;font-size:12px;line-height:1.65;color:var(--ink-2);background:var(--raised);border:1px solid var(--border-soft);padding:12px 14px;margin-top:10px;max-height:340px;overflow:auto}
+.ojt-grade-box{margin-top:10px}.ojt-grade-buttons{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ojt-grade{min-height:36px;border:1px solid var(--border);background:var(--raised);border-radius:20px;padding:0 14px;font-size:12px;color:var(--ink)}.ojt-grade:hover,.ojt-grade.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-dark);font-weight:700}.ojt-grade:disabled{opacity:.5;cursor:wait}
+.ojt-note{display:flex;gap:8px;margin-top:9px}.ojt-note input{flex:1;min-width:0;height:39px;border:1px solid var(--border);background:var(--surface);padding:0 12px;font-size:12px;color:var(--ink);outline:0}.ojt-note input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring)}
+.ojt-grade-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;margin-top:8px;font-size:12px;color:var(--ink-2)}.ojt-state{display:inline-flex;align-items:center;gap:4px;font-size:10px;border-radius:20px;padding:2px 8px}.ojt-state.wait{background:color-mix(in srgb,var(--pop) 15%,var(--surface));color:color-mix(in srgb,var(--pop) 70%,var(--ink))}.ojt-state.done{background:var(--accent-soft);color:var(--accent-dark)}
+.ojt-actions{display:inline-flex;gap:12px;margin-left:auto}.ojt-actions .link-button{display:inline-flex;align-items:center;gap:4px;font-size:11px}
+.ojt-report.grade-bad .ojt-report-title{color:var(--danger)}
+@media(max-width:680px){.ojt-job-head{flex-direction:column}.ojt-streak{align-items:flex-start}.ojt-note{flex-direction:column}.ojt-actions{margin-left:0}}

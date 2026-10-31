@@ -2,7 +2,7 @@
 // 재료(team.json · HIA STATE.md · openclaw agents list · 개인화 design.json · widget.html)로 대시보드 동기화 파일 3개를 만든다.
 //   <out>/manifest.json  버전(내용 해시)·생성 시각·개수·파싱 사유   (기본 <out> = ~/.openclaw/workspace/dashboard, 이후 send_to_pc.mjs 로 PC 에 전송)
 //   <out>/config.json    메뉴·담당·즐겨찾기·주차·직원 + 내 업무(customMenus)·테마·위젯
-//   <out>/seed.json      칸반 기록 + VPS 에이전트 목록
+//   <out>/seed.json      칸반 기록 + 수습(ojt) 업무·보고 + VPS 에이전트 목록  (수습 장부: <out>/ojt.json 또는 --ojt, ojt.mjs 로 쓴다)
 // 같은 입력이면 같은 version 이 나온다(generatedAt 제외). 기존 파일은 .bak-<시각> 으로 보관한다.
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
@@ -11,16 +11,17 @@ import os from 'node:os'
 import path from 'node:path'
 import { CUSTOM_KEY, normalizeCustomMenus, normalizeTheme, normalizeWidget } from './lib/personalize.mjs'
 import { parseState } from './lib/state-parser.mjs'
+import { loadStore as loadOjt, seedRecords as ojtSeedRecords } from './ojt.mjs'
 
-const MENU_KEYS = ['tasks', 'proposals', 'agents', 'operations', 'sessions', 'console', 'bizkakao', 'kakao', 'email', 'calls', 'contacts', 'post', 'meetingroom', 'dispatch', 'orders', 'coupang', 'sourcing', 'school', 'coupons', 'projects', 'youtube', 'ideas', 'news', 'landing', 'meetings', 'notes', 'plaud', 'books', 'notebooks', 'settings']
-const DEFAULT_MENUS = ['tasks', 'agents', 'email', 'ideas', 'notes', 'settings']
+const MENU_KEYS = ['tasks', 'proposals', 'ojt', 'agents', 'operations', 'sessions', 'console', 'bizkakao', 'kakao', 'email', 'calls', 'contacts', 'post', 'meetingroom', 'dispatch', 'orders', 'coupang', 'sourcing', 'school', 'coupons', 'projects', 'youtube', 'ideas', 'news', 'landing', 'meetings', 'notes', 'plaud', 'books', 'notebooks', 'settings']
+const DEFAULT_MENUS = ['tasks', 'ojt', 'agents', 'email', 'ideas', 'notes', 'settings']
 const AGENT_ID = /^[a-z][a-z0-9-]{1,39}$/
 const SECRET = /(sk-[a-z0-9]{8,}|ghp_[a-z0-9]{10,}|xox[abp]-[a-z0-9-]{10,}|(?:password|passwd|secret|api[_ -]?key|token)\s*[:=]\s*\S{6,})/i
 
 function fail(message, code = 1) { const error = new Error(message); error.exitCode = code; throw error }
 
 function parseArgs(argv) {
-  const options = { menus: [], owners: {}, favorites: null, week: null, name: null, team: null, state: null, agents: null, out: null, quiet: false, design: null, widget: null, widgetTitle: null }
+  const options = { menus: [], owners: {}, favorites: null, week: null, name: null, team: null, state: null, agents: null, out: null, quiet: false, design: null, widget: null, widgetTitle: null, ojt: null }
   for (let i = 0; i < argv.length; i += 1) {
     const flag = argv[i]
     if (flag === '--quiet') { options.quiet = true; continue }
@@ -35,6 +36,7 @@ function parseArgs(argv) {
       case '--design': options.design = value; break
       case '--widget': options.widget = value; break
       case '--widget-title': options.widgetTitle = value; break
+      case '--ojt': options.ojt = value; break
       case '--week': options.week = Number(value); break
       case '--menus': options.menus.push(...value.split(',').map(s => s.trim()).filter(Boolean)); break
       case '--favorites': options.favorites = value.split(',').map(s => s.trim()).filter(Boolean); break
@@ -139,6 +141,10 @@ function buildSeed(options, teamInfo, registered) {
       reasons.push(...parsed.reasons.map(r => `STATE.md: ${r}`))
     }
   } else reasons.push('no --state given — kanban has only first tasks from team.json')
+  // 수습 장부(ojt.mjs 가 쓰는 파일). 없으면 수습 메뉴는 비어 있다.
+  const ojtFile = options.ojt || path.join(options.out, 'ojt.json')
+  if (fs.existsSync(ojtFile)) records.ojt = ojtSeedRecords(loadOjt(ojtFile))
+  else if (options.ojt) reasons.push(`ojt ledger not found at ${options.ojt} — 수습 메뉴 비움`)
   // 온보딩에서 제안한 첫 과제는 "대기" 칸에 담당자와 함께 넣는다 (아직 실행 전이라는 뜻).
   for (const agent of teamInfo.agents) for (const [index, task] of agent.firstTasks.entries()) {
     if (!task?.task) continue
@@ -183,7 +189,7 @@ export function build(options) {
   const seedOut = { version: 1, records: seed.records, agents: seed.agents }
   scanSecrets(config, 'config'); scanSecrets(seedOut, 'seed')
   const version = hashOf(config, seedOut)
-  const manifest = { version, generatedAt: new Date().toISOString(), generator: 'dashboard-builder/0.3', counts: { menus: config.menus.length, customMenus: config.customMenus.length, widget: config.widget ? 1 : 0, agents: config.agents.length, tasks: seed.records.tasks.length, registeredAgents: seed.agents.length }, reasons }
+  const manifest = { version, generatedAt: new Date().toISOString(), generator: 'dashboard-builder/0.3', counts: { menus: config.menus.length, customMenus: config.customMenus.length, widget: config.widget ? 1 : 0, agents: config.agents.length, tasks: seed.records.tasks.length, ojt: seed.records.ojt?.length || 0, registeredAgents: seed.agents.length }, reasons }
   fs.mkdirSync(options.out, { recursive: true })
   const backups = []
   for (const [name, content] of [['config.json', config], ['seed.json', seedOut], ['manifest.json', manifest]]) {

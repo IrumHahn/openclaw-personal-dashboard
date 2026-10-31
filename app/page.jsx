@@ -7,6 +7,7 @@ import { CUSTOM_GROUP, CUSTOM_KEY, MENU_BY_KEY, RECORD_KEYS, menuCatalog } from 
 import AgentsPage from './components/AgentsPage'
 import HomePage from './components/HomePage'
 import MenuCardPage from './components/MenuCardPage'
+import OjtPage from './components/OjtPage'
 import OperationsPage from './components/OperationsPage'
 import RecordList, { RecordForm } from './components/RecordList'
 import SettingsPage from './components/SettingsPage'
@@ -140,6 +141,7 @@ export default function Dashboard() {
         : active === 'agents' ? <AgentsPage config={config} menus={menus} system={system} loading={loading} navigate={navigate} />
         : active === 'operations' ? <OperationsPage system={system} loading={loading} />
         : active === 'settings' ? <SettingsPage key={config.sync.lastSuccessAt || 'settings'} config={config} catalog={catalog} onSave={saveConfig} onSync={sync} syncing={syncing} syncConfigured={syncConfigured} inbox={inbox} refresh={refresh} />
+        : active === 'ojt' && !current.locked ? <OjtPage menu={current} config={config} items={records.ojt || []} loading={loading} onChanged={refresh} />
         : current.kind === 'record' && !current.locked ? <RecordList menu={current} config={config} items={currentItems} loading={loading} search={search} setSearch={setSearch} view={view} setView={chooseView} onAdd={() => { setEditing(null); setFormOpen(true) }} onEdit={item => { setEditing(item); setFormOpen(true) }} onRemove={remove} onStatus={setStatus} />
         : <MenuCardPage menu={current} config={config} records={records} navigate={navigate} />}
     </div></main>

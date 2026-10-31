@@ -83,6 +83,24 @@ v0.3 개인화 필드(생략 가능, `references/personalize.md`·`widget-guide.
 ```
 `transport` 가 없으면 `file`. `hub` 의 inbox 는 Windows 경로(역슬래시)이며 `%VAR%` 를 PC 의 cmd 가 푼다.
 
+## 수습(ojt) 기록과 채점 되돌림 (v0.5)
+
+seed `records.ojt` 에 두 종류가 들어간다(`scripts/ojt.mjs` 가 `<out>/ojt.json` 장부에서 만든다. 보고는 최근 30건만).
+
+```json
+{ "kind": "job", "title": "쿠팡 광고 일지", "job": "ad-log", "agent": "ana", "level": "L1", "lesson": "11/8 ROAS 에 VAT 포함", "summary": "…", "source": "job-handoff", "sourceId": "job:ad-log" }
+{ "kind": "report", "title": "11/9 광고 일지", "body": "…", "date": "2026-11-09", "job": "ad-log", "agent": "ana", "gradeAck": "<비서가 반영한 채점의 gradedAt>", "source": "job-handoff", "sourceId": "report:ad-log:1109" }
+```
+
+- 채점(`grade` good|fix|bad · `gradeNote` · `gradedAt`)은 **PC 에서만** 생긴다. seed 에 넣어도 무시된다(병합이 덮어쓰지 않음).
+- PC 는 채점할 때마다, 그리고 동기화 반영 뒤마다 inbox 에 **`grades.json` + `grades.b64`**(같은 내용, b64 는 ASCII)를 다시 쓴다. `pending` = `gradeAck ≠ gradedAt` 인 보고.
+  ```json
+  { "version": 1, "kind": "ojt-grades", "generatedAt": "…", "pending": [ { "sourceId": "report:ad-log:1109", "job": "ad-log", "agent": "ana", "title": "11/9 광고 일지", "date": "2026-11-09", "grade": "fix", "emoji": "✏️", "note": "광고비는 VAT 빼고", "gradedAt": "…" } ] }
+  ```
+- 읽는 길: file 노드 = `file.fetch { path: "<inbox>/grades.json" }`(정책 `allowReadPaths` 는 이미 `<inbox>/**`, 명령 허용에 `file.fetch` 추가) · hub 노드 = 전송 명령 끝의 `echo ===OJT-GRADES-BEGIN=== && (if exist …grades.b64 (type …) else (echo NO-GRADES)) && echo ===OJT-GRADES-END===` (허용 창 추가 없음).
+- 반영 알림: 비서가 `ojt.mjs ack` → 다음 seed 의 해당 보고에 `gradeAck = gradedAt` → PC 가 "반영됨 ✓", pending 에서 빠짐.
+- ⚠ 실증 전(2026-10-31): `file.fetch` 파라미터 이름(`path`)과 Windows Hub 의 `if exist … type` 출력은 로컬 모의 테스트로만 확인했다. 실제 노드에서 한 번 확인할 것.
+
 ## PC 쪽 병합 규칙 (`lib/merge.js`, `lib/sync.js`)
 
 | 상황 | 결과 |

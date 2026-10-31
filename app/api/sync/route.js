@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { readConfig, writeConfig } from '../../../lib/config-store'
-import { describeInbox, inboxIsNew, readInbox } from '../../../lib/inbox'
+import { INBOX_DIR, describeInbox, inboxIsNew, readInbox } from '../../../lib/inbox'
+import { writeGradesOutbox } from '../../../lib/ojt-outbox'
 import { mutateStore } from '../../../lib/store'
 import { applyBundle, fetchBundle } from '../../../lib/sync'
 import { assertSameOrigin } from '../../../lib/security'
@@ -39,8 +40,10 @@ export async function POST(request) {
     } else {
       return NextResponse.json({ error: `아직 받은 데이터가 없습니다. VPS 에서 비서에게 "대시보드 만들어줘" 라고 하면 ${describeInbox(inbox).dir} 에 파일이 들어옵니다. 또는 설정 > JSON 가져오기.` }, { status: 404 })
     }
-    const result = await mutateStore(data => applyBundle({ bundle, config, data }))
+    const result = await mutateStore(data => ({ ...applyBundle({ bundle, config, data }), ojt: data.ojt || [] }))
     await saveRegisteredAgents(result.registeredAgents)
+    // 비서가 gradeAck 로 "채점 반영함"을 알려 왔으면 grades.json 의 대기 목록에서 빠진다. 수습 기록이 있을 때만 쓴다.
+    if (result.ojt.length) await writeGradesOutbox(INBOX_DIR, result.ojt).catch(() => {})
     const saved = await writeConfig({ ...result.config, sync: { ...result.config.sync, lastSuccessAt: new Date().toISOString(), lastVersion: result.version, lastError: null } })
     return NextResponse.json({ ok: true, source, version: result.version, merge: result.merge, reasons: result.reasons, config: saved })
   } catch (error) {

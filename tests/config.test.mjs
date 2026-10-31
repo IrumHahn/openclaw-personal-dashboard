@@ -3,16 +3,16 @@ import test from 'node:test'
 import { defaultConfig, normalizeConfig, visibleMenus } from '../lib/config.js'
 import { MENUS, RECORD_KEYS, GROUPS } from '../lib/menu-tree.js'
 
-test('menu tree has 30 menus in 5 groups with unique keys', () => {
-  assert.equal(MENUS.length, 30)
-  assert.equal(new Set(MENUS.map(m => m.key)).size, 30)
+test('menu tree has 31 menus (30 + 수습) in 5 groups with unique keys', () => {
+  assert.equal(MENUS.length, 31)
+  assert.equal(new Set(MENUS.map(m => m.key)).size, 31)
   for (const menu of MENUS) assert.ok(GROUPS.includes(menu.group), menu.key)
   assert.ok(RECORD_KEYS.includes('tasks') && RECORD_KEYS.includes('ideas'))
 })
 
 test('default config enables the week-1 basic six and settings/agents', () => {
   const config = defaultConfig()
-  assert.deepEqual(config.menus.map(m => m.key), ['tasks', 'agents', 'email', 'ideas', 'notes', 'settings'])
+  assert.deepEqual(config.menus.map(m => m.key), ['tasks', 'ojt', 'agents', 'email', 'ideas', 'notes', 'settings'])
   assert.equal(config.favorites.length, 6)
   assert.equal(config.week, 1)
 })

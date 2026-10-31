@@ -35,7 +35,7 @@ test('builds config/seed/manifest from team, state and agents', () => {
     assert.equal(result.status, 0, result.stderr)
     const config = t.read('config.json'); const seed = t.read('seed.json'); const manifest = t.read('manifest.json')
     assert.equal(config.name, '대표님의 AI 오피스')
-    assert.deepEqual(config.menus.map(m => m.key), ['tasks', 'agents', 'email', 'ideas', 'notes', 'settings'])
+    assert.deepEqual(config.menus.map(m => m.key), ['tasks', 'ojt', 'agents', 'email', 'ideas', 'notes', 'settings'])
     assert.equal(config.menus.find(m => m.key === 'tasks').owner, 'mira')
     assert.equal(config.agents.length, 2)
     assert.ok(!('firstTasks' in config.agents[0]))
